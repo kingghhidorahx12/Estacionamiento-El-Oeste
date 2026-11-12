@@ -1,0 +1,46 @@
+{
+  "web/vendor/eng.traineddata.gz": {
+    "sha256": "ed350f3752f81ee8f38769edc14d92d997dababe23b565c59879372cc46a2468",
+    "bytes": 10923060
+  },
+  "web/vendor/jsQR.js": {
+    "sha256": "bc40c8a15196236b2314db0856f72ca0b49980cd5413b8c852a7349f5fee0859",
+    "bytes": 256885
+  },
+  "web/vendor/qrcode.js": {
+    "sha256": "18ae399f81182bc9de916e9c77b195df20cc58d6f2d55a62b085a299f1bf1780",
+    "bytes": 56694
+  },
+  "web/vendor/tesseract-core-lstm.wasm": {
+    "sha256": "5db58ea4d1bd4256be81e8ae3b4fa226c4625dfba1850b1b3308dbf3700e9929",
+    "bytes": 2859424
+  },
+  "web/vendor/tesseract-core-lstm.wasm.js": {
+    "sha256": "8f04aa0cc81e7bde33f80e92fa01a7a665f0b4884d098acf5de9c7104a11dfaa",
+    "bytes": 3938277
+  },
+  "web/vendor/tesseract.min.js": {
+    "sha256": "a8e29918d098b2b06e1012bdaeffb4aec0445c5d5654709023e0bd1f442a80e8",
+    "bytes": 66695
+  },
+  "web/vendor/worker.min.js": {
+    "sha256": "aca1229639fc9907d86f96e825955a2b7c5716d17f3bc3acd71f9c7ab66181fc",
+    "bytes": 123724
+  },
+  ".dev/lib/json.jar": {
+    "sha256": "3ea61b2a06e31edf1c91134fe9106b0ebb16628be169f3db75bc7a2b06b45796",
+    "bytes": 82710
+  },
+  ".dev/lib/slf4j-api.jar": {
+    "sha256": "7b751d952061954d5abfed7181c1f645d336091b679891591d63329c622eb832",
+    "bytes": 69908
+  },
+  ".dev/lib/slf4j-nop.jar": {
+    "sha256": "3716f83649ec66161a2edefd4f49df34d1dd1c51cdcf941996c6987260f0a829",
+    "bytes": 4982
+  },
+  ".dev/lib/sqlite.jar": {
+    "sha256": "a3f53a2aa15ae9425a9e793bbe9c8e5288febeb4b65ef5c1a4e80d4c2045cf08",
+    "bytes": 14346720
+  }
+}

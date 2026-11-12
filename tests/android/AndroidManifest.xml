@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="mx.eloeste.tests">
+  <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35"/>
+  <application android:label="El Oeste · Pruebas" android:allowBackup="false"/>
+  <instrumentation android:name="mx.eloeste.tests.NativeSmoke" android:targetPackage="mx.eloeste.servidor" android:label="Pruebas nativas aisladas"/>
+</manifest>

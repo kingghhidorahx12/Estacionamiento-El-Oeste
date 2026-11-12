@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.png -text
+*.ttf -text
+*.wasm -text
+*.gz -text
+# Preserve upstream license notices byte-for-byte, including their whitespace.
+web/assets/fonts/OFL.txt -whitespace
+remote/public/assets/fonts/OFL.txt -whitespace
+web/vendor/licenses/* -whitespace

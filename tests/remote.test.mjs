@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import worker,{validateEvent} from '../remote/worker.mjs';
+const event=()=>({installation:'a'.repeat(64),epoch:'b'.repeat(64),id:'12345678-1234-1234-1234-123456789abc',seq:1,paid:1794499200000,actor:'empleado',total:15000,lines:[{category:'wash_auto',cents:12000},{category:'day_addon',cents:3000}]});
+test('remote replica accepts the exact separated wash and day payment',()=>assert.equal(validateEvent(event()).total,15000));
+test('replica rejects unbalanced or invented financial categories',()=>{const e=event();e.lines.push({category:'unknown',cents:0});assert.throws(()=>validateEvent(e));const p=event();p.total++;assert.throws(()=>validateEvent(p));});
+test('replica never accepts vehicle, photo or arbitrary note fields',()=>{for(const field of ['plate','photo','vehicle','pin','notes']){const e=event();e[field]='PRIVATE';assert.throws(()=>validateEvent(e));}const e=event();e.lines[0].label='Placa privada';assert.throws(()=>validateEvent(e));});
+test('replica refuses an unauthenticated owner dashboard',async()=>{const response=await worker.fetch(new Request('https://example.invalid/api/report?date=2026-11-12'),{});assert.equal(response.status,401);});
+test('replica refuses ingestion without a long configured token',async()=>{const response=await worker.fetch(new Request('https://example.invalid/ingest',{method:'POST',body:'{}'}),{SYNC_TOKEN:'short'});assert.equal(response.status,401);});
+test('replica refuses arbitrary methods on ingest',async()=>{const response=await worker.fetch(new Request('https://example.invalid/ingest'),{});assert.equal(response.status,405);});
