@@ -14,3 +14,5 @@ Los recursos web se sirven desde la tablet, sin CDN en tiempo de operación.
 | SLF4J 2.0.17 | Adaptador del host de pruebas, MIT. | https://www.slf4j.org/ |
 
 Los scripts fijan versiones. Los avisos de los archivos originales se conservan; no se ha copiado identidad ni ilustraciones comerciales de El Muelle. Los archivos descargados deben acompañarse de los avisos de licencia en `web/vendor/licenses/` al redistribuir.
+
+La ilustración `web/assets/oeste-panorama.png` (también usada en la réplica) fue generada para este proyecto el 12/11/2026 mediante la habilidad ImageGen, modo de generación nuevo sin imágenes de referencia. El prompt pidió un patio de estacionamiento mexicano al poniente, luz dorada, cielo azul, cuatro vehículos y espacio tranquilo para la interfaz; excluyó texto, elementos marinos e identidad de El Muelle. Es una ilustración conceptual y no una fotografía del establecimiento. El símbolo vectorial propio representa sol, horizonte y flecha hacia el oeste.

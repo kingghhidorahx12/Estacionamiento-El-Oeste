@@ -57,19 +57,23 @@ La compilación genera una APK **de pruebas**, con clave de desarrollo local exc
 
 ## Instalación en HONOR Pad 8
 
-1. Reservar una IP para la tablet en el router del negocio. Usar Wi-Fi sin aislamiento entre clientes.
-2. Generar una CA local y certificado para esa IP:
+1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.3.0. No se requiere una computadora para generar certificados.
+2. Abrir **El Oeste · Servidor**, crear el usuario administrador y su PIN. La app prepara automáticamente una CA y un certificado únicos para esa instalación. Las claves privadas se generan dentro de AndroidKeyStore y no se exportan ni vienen compartidas dentro de la APK.
+3. Cuando indique **Activo**, pulsar **Conectar un celular**. Con el celular en el mismo Wi-Fi, escanear el QR, descargar `El-Oeste-CA.cer` y seguir la guía de autorización del teléfono. La pantalla de la tablet muestra la huella SHA-256 para comprobar que se instala su certificado correcto.
+4. Abrir la dirección `https://IP-DE-LA-TABLET:8443`, entrar con usuario/PIN y agregarla a la pantalla de inicio. Autorizar la cámara al usarla. No omitir advertencias TLS.
+5. Crear empleados desde Administración y generar las 35 tarjetas en **Tarjetas QR → Imprimir tarjetas**. Sus secretos nacen aleatoriamente en la instalación privada.
 
-   ```powershell
-   ./scripts/tls.ps1 -Ip 192.168.X.Y -JavaHome C:/ruta/jdk-21
-   ```
+**¿Qué se ahorró?** La instalación habitual ya no necesita crear ni importar `server.p12`, instalar JDK en otra computadora o manejar una contraseña de certificado. La CA pública se obtiene directamente de la tablet. Los certificados importados en versiones anteriores se conservan; la importación externa sigue disponible dentro de Opciones avanzadas.
 
-3. Conservar **privadamente** `.dev/tls/ca.p12` y su contraseña. Transferir sólo `server.p12` a la tablet y el certificado público `El-Oeste-CA.cer` a cada teléfono. El script no instala certificados ni cambia la seguridad del sistema automáticamente.
-4. Instalar la APK de pruebas en un entorno de ensayo. Abrir **El Oeste · Servidor**, crear administrador/PIN, importar `server.p12` con su contraseña y pulsar **Iniciar servidor**. Autorizar las notificaciones para poder comprobar su estado.
-5. Entrar a `https://IP-DE-LA-TABLET:8443` desde los teléfonos tras instalar la CA de forma autorizada. El certificado debe coincidir con la IP; no omitir advertencias TLS. No abrir el puerto en Internet.
-6. Crear empleados desde Administración y generar las 35 tarjetas en **Tarjetas QR → Imprimir tarjetas**. Los identificadores nacen aleatoriamente en esa instalación privada; no se suministra una colección pública de QR productivos.
+**¿Puede eliminarse `El-Oeste-CA.cer`?** En este diseño local, sin dominio público y operativo sin Internet, cada teléfono debe autorizar una vez la CA de la tablet para usar HTTPS y cámara. La aplicación no puede concederse esa confianza por sí misma. `El-Oeste-CA.cer` contiene sólo el certificado público, nunca la clave privada. No se deben instalar certificados de una fuente desconocida.
 
-En iPhone: instalar el certificado público como perfil, revisarlo y activar su confianza en **Ajustes → General → Información → Ajustes de confianza de certificados**, según la versión. La [guía de Apple](https://support.apple.com/en-us/102390) confirma que un perfil instalado manualmente no obtiene confianza SSL automáticamente. Luego abrir la URL HTTPS en Safari y usar **Compartir → Añadir a pantalla de inicio**. En Android: instalar la CA de usuario desde las opciones de certificados del sistema y abrir la URL en Chrome; añadir/instalar la aplicación desde su menú. Cada persona autoriza su certificado y su cámara. No se instala una CA privada ni su clave en los teléfonos.
+En iPhone: revisar e instalar el perfil y activar su confianza en **Ajustes → General → Información → Ajustes de confianza de certificados**. La [guía de Apple](https://support.apple.com/en-us/102390) explica esta autorización. En Android: **Ajustes → Seguridad → Instalar certificado → Certificado de CA**; el nombre del menú varía según fabricante y versión. Cada usuario realiza la autorización en su teléfono. Si el navegador no reconoce la conexión tras autorizarla, revisar certificado, fecha e IP; no desactivar su validación.
+
+La guía de conexión usa temporalmente HTTP en el puerto 8788, con una ruta aleatoria y caducidad de 10 minutos. Sólo entrega instrucciones y la CA pública: no tiene API, cookies, PIN, vehículos ni cobros. Se cierra al salir de esa pantalla de la tablet. Como la descarga inicial no está autenticada por HTTPS, **comparar la huella del certificado con la pantalla física de la tablet antes de instalarlo**. La operación continúa exclusivamente en HTTPS, puerto 8443.
+
+En la conexión automática, si cambia la IP del Wi-Fi, la app renueva el certificado del servidor conservando la misma CA; el enlace guardado en los teléfonos sí debe actualizarse. Se recomienda reservar la IP en el router para mantener estable el acceso. El Wi-Fi debe permitir comunicación entre sus dispositivos; no abrir estos puertos a Internet. La renovación local del certificado no requiere Internet. Los certificados externos importados siguen sujetos a su configuración y renovación manual. Desinstalar la app o borrar sus datos elimina su identidad local y exige preparar y autorizar una nueva instalación.
+
+Eliminar la autorización manual requeriría otro esquema: dominio propio y certificado de una autoridad pública, con configuración de DNS y renovación por Internet. No está activado ni se supone contratado.
 
 El servidor usa servicio en primer plano con notificación, recuperación `START_STICKY` y aviso tras reinicio. Android puede detener procesos: tras reinicio, cierre forzado o ahorro de energía, verificar el estado y reabrir la app si procede. No se cambian ajustes globales, permisos USB ni políticas de El Muelle. La prueba prolongada con El Muelle en primer plano y la báscula conectada permanece obligatoria antes de producción.
 

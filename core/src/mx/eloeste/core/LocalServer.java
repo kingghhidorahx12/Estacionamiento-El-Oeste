@@ -26,6 +26,20 @@ public final class LocalServer implements Closeable {
         KeyManagerFactory km=KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm()); km.init(ks,password);
         SSLContext context=SSLContext.getInstance("TLS"); context.init(km.getKeyManagers(),null,new SecureRandom()); return context;
     }
+    public static SSLContext tls(PrivateKey key,java.security.cert.X509Certificate[] certificates) throws Exception {
+        final java.security.cert.X509Certificate[] chain=certificates.clone();
+        X509ExtendedKeyManager manager=new X509ExtendedKeyManager() {
+            private String alias(String type) { return type!=null&&(type.equals("RSA")||type.equals("RSASSA-PSS"))?"oeste":null; }
+            public String[] getClientAliases(String type,java.security.Principal[] issuers) { return null; }
+            public String chooseClientAlias(String[] types,java.security.Principal[] issuers,Socket socket) { return null; }
+            public String[] getServerAliases(String type,java.security.Principal[] issuers) { return alias(type)==null?null:new String[]{"oeste"}; }
+            public String chooseServerAlias(String type,java.security.Principal[] issuers,Socket socket) { return alias(type); }
+            public String chooseEngineServerAlias(String type,java.security.Principal[] issuers,SSLEngine engine) { return alias(type); }
+            public java.security.cert.X509Certificate[] getCertificateChain(String name) { return "oeste".equals(name)?chain.clone():null; }
+            public PrivateKey getPrivateKey(String name) { return "oeste".equals(name)?key:null; }
+        };
+        SSLContext context=SSLContext.getInstance("TLS"); context.init(new KeyManager[]{manager},null,new SecureRandom()); return context;
+    }
     public void start() { Thread t=new Thread(()->{ while(running) try { Socket client=socket.accept(); try { pool.execute(()->serve(client)); } catch(RejectedExecutionException ex) { client.close(); } } catch(IOException ex) { if(running) System.err.println("Local listener unavailable"); } },"oeste-listener"); t.setDaemon(true); t.start(); }
     public int port() { return socket.getLocalPort(); }
     private String line(InputStream in,int limit) throws IOException { ByteArrayOutputStream b=new ByteArrayOutputStream(); int c; while((c=in.read())!=-1) { if(c=='\n') break; if(c!='\r') b.write(c); if(b.size()>limit) throw new IOException("Header too long"); } return c==-1&&b.size()==0?null:b.toString("US-ASCII"); }

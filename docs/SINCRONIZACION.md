@@ -9,7 +9,7 @@ Preparación con la cuenta del propietario:
 3. Configurar una aplicación Cloudflare Access para el panel del Worker. Autorizar sólo al propietario mediante su identidad con MFA/passkey según su proveedor. Reemplazar `ACCESS_TEAM_DOMAIN` y `ACCESS_AUD` por los valores reales de Access. El Worker valida firma, emisor, audiencia y caducidad del JWT; una cabecera inventada no autentica.
 4. La ruta exacta `/ingest` debe llegar al Worker sin el inicio de sesión interactivo de Access. Esa excepción requiere una política explícita y queda protegida en el Worker por un secreto aleatorio `SYNC_TOKEN` de al menos 32 caracteres. No exponer otras rutas ni usar un PIN como secreto de Internet.
 5. Guardar el secreto con el administrador de secretos de Workers, nunca en `wrangler.jsonc` ni Git. Publicar mediante Wrangler desde `remote/`. No se incluyen claves de cuenta ni un despliegue fingido.
-6. En la app nativa de la tablet, desbloquear configuración e introducir la URL HTTPS exacta `https://HOST/ingest` y su token. Los reintentos no requieren intervención de los empleados.
+6. En la app nativa de la tablet, desbloquear configuración, abrir **Opciones avanzadas** e introducir la URL HTTPS exacta `https://HOST/ingest` y su token. Los reintentos no requieren intervención de los empleados.
 
 El Worker acepta lotes de hasta 50 pagos. Valida conceptos, centavos y conciliación. Los identificadores de pago son inmutables y se deduplican por instalación e ID; época/secuencia detectan conflictos de orden. Una restauración conserva IDs históricos y abre una nueva época para futuros pagos. Un lote sólo se confirma tras verificar los registros guardados. La tabla remota nunca se usa para autorizar una salida.
 
