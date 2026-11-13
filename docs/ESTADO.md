@@ -87,3 +87,22 @@ Pendiente antes de producción: probar generación de claves, TLS y QR dentro de
 Entrega 0.3.0: `artifacts/El-Oeste-0.3.0-pruebas.apk`, 16,771,737 bytes, SHA-256 `53daa881e221ce35a8321ac2a420a1c9bc1caadd3d9fcbf739673197d127c08e`. Paquete web: `artifacts/El-Oeste-Web-0.3.0.zip`; las huellas de ambos se regeneran en `artifacts/SHA256SUMS.json`. Se cotejaron todos los recursos del APK byte a byte contra `web/` y se verificó ausencia de bases, respaldos, certificados, claves y archivos privados.
 
 Commit de implementación 0.3.0: `8e262603c41878b9816d737aec83799679562f06` (36 archivos revisados; sin artefactos privados).
+
+
+## Cierre de conexión desde celular Android · versión 0.3.1
+
+Evidencia del propietario: video del 12/11/2026 grabado en un **celular Android**, no en la tablet. El instalador informa que se instaló el certificado de CA; la página pública del QR abre. Al abrir el estacionamiento en el puerto 8443, Chrome muestra ERR_CONNECTION_CLOSED. Esto no demuestra por sí mismo cuál excepción ocurrió en la tablet.
+
+Se encontró un defecto concreto compatible con ese síntoma: la clave no exportable del servidor no autorizaba DIGEST_NONE ni ENCRYPTION_PADDING_NONE. [Android documenta estas autorizaciones para operaciones TLS delegadas](https://developer.android.com/reference/android/security/keystore/KeyGenParameterSpec.Builder#setDigests(java.lang.String...)). El código de [Conscrypt CryptoUpcalls](https://github.com/google/conscrypt/blob/master/common/src/main/java/org/conscrypt/CryptoUpcalls.java) delega operaciones RSA con el digest/padding ya preparado por TLS.
+
+Corrección:
+
+- Nueva clave `oeste-local-server-v2` con las autorizaciones de digest y padding que necesita TLS. Se conserva `oeste-local-root-v1`, el archivo CA y la clave v1; se renueva sólo el certificado del servidor. No se elimina identidad, datos, PIN, tarifas ni registros.
+- Prueba interna acotada con el proveedor real: TLS 1.2 ECDHE-RSA y TLS 1.3, CA específica y nombre de host validado. Sin cambios en confianza de Windows/Android. La app no anuncia Activo si falla y presenta un código TLS12/TLS13 en lugar de atribuir todo a Wi-Fi.
+- Actualización 0.3.1, versionCode 4, con la misma firma que 0.3.0. Instalar **encima en la tablet**, abrir El Oeste · Servidor y activar la conexión. No desinstalar ni borrar datos; el celular conserva la misma CA y URL.
+
+Verificaciones ejecutadas: 4 pruebas JDK de conexión real y detección de fallos (TLS 1.2/1.3, CA ajena, clave incorrecta y servidor sin clave); APK y firma verificadas; recursos del paquete cotejados contra web sin datos ni claves privados; instrumentación Android compilada con comprobación KeyInfo y modo de ensayo de migración v1→v2 conservando CA. Las suites de negocio y la interfaz no se modificaron en esta corrección.
+
+No ejecutado: el emulador sin aceleración no consiguió arrancar Android; la suite nativa y la migración real siguen pendientes. No hay dispositivo físico conectado por ADB y la conexión de diagnóstico desde esta computadora al servidor mostrado en el video agotó su tiempo de espera. **No se presenta la causa del video como confirmada por logs del dispositivo ni la corrección como comprobada físicamente.** La prueba interna incluida en la APK verificará el proveedor de la tablet al activarla.
+
+Entrega: `artifacts/El-Oeste-0.3.1-pruebas.apk`, 16,775,833 bytes; SHA-256 `5484dd325b455cba421d849dd1e34488d80be1eebef22bd0a25cee860cbe3335`. Firma de actualización conservada: certificado SHA-256 `ae45ebb586679900420c15199a3d51fcdb8dd8686d2bfe844d8bc031687de325`. Artefactos privados fuera de Git.

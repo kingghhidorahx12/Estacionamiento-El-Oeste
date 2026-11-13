@@ -57,7 +57,7 @@ La compilación genera una APK **de pruebas**, con clave de desarrollo local exc
 
 ## Instalación en HONOR Pad 8
 
-1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.3.0. No se requiere una computadora para generar certificados.
+1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.3.1. No se requiere una computadora para generar certificados.
 2. Abrir **El Oeste · Servidor**, crear el usuario administrador y su PIN. La app prepara automáticamente una CA y un certificado únicos para esa instalación. Las claves privadas se generan dentro de AndroidKeyStore y no se exportan ni vienen compartidas dentro de la APK.
 3. Cuando indique **Activo**, pulsar **Conectar un celular**. Con el celular en el mismo Wi-Fi, escanear el QR, descargar `El-Oeste-CA.cer` y seguir la guía de autorización del teléfono. La pantalla de la tablet muestra la huella SHA-256 para comprobar que se instala su certificado correcto.
 4. Abrir la dirección `https://IP-DE-LA-TABLET:8443`, entrar con usuario/PIN y agregarla a la pantalla de inicio. Autorizar la cámara al usarla. No omitir advertencias TLS.
@@ -98,3 +98,11 @@ No sincroniza placas, fotografías, marca, color, PIN, tokens QR ni notas de res
 - `tests/`: reglas, integración, seguridad y pruebas nativas separadas.
 
 Iconografía, marca y paisaje vectorial de El Oeste creados para este proyecto. No incluyen activos comerciales de El Muelle. Tipografía Manrope bajo OFL; avisos y procedencia de terceros en [THIRD_PARTY.md](THIRD_PARTY.md).
+
+## Actualización 0.3.1 · cierre de conexión desde Android
+
+Si el celular instala la CA y abre la guía, pero el acceso al estacionamiento termina en `ERR_CONNECTION_CLOSED`, instalar la APK 0.3.1 **encima de la aplicación existente en la tablet**, abrir El Oeste · Servidor y activar la conexión. Conservar los datos de la aplicación. La actualización mantiene la CA local y los registros; renueva únicamente la clave/certificado del servidor con las autorizaciones de AndroidKeyStore que necesita TLS. El celular continúa usando la misma dirección y CA.
+
+Antes de anunciar Activo, la conexión automática comprueba TLS 1.2 y TLS 1.3 con su proveedor real, validando CA y nombre de host en una prueba interna. Si falla, muestra un código TLS12/TLS13 para revisión. Las pruebas JDK no prueban por sí mismas el comportamiento de una HONOR física.
+
+Referencia de la corrección: [KeyGenParameterSpec.Builder de Android](https://developer.android.com/reference/android/security/keystore/KeyGenParameterSpec.Builder#setDigests(java.lang.String...)) documenta las autorizaciones de digest y padding necesarias para claves TLS delegadas. La versión anterior no autorizaba DIGEST_NONE ni ENCRYPTION_PADDING_NONE en la clave de servidor.

@@ -41,7 +41,10 @@ public final class ServerService extends Service {
                 status="Activo · Conexión segura";
                 getSystemService(NotificationManager.class).notify(1,notice(this,"Servidor local activo · mantén la tablet encendida"));
                 new RemoteSync(this,api).run();
-            } catch(Exception e) { if(!destroyed)status="No se pudo conectar. Revisa el Wi-Fi y vuelve a iniciar."; }
+            } catch(Exception e) { if(!destroyed) {
+                status=e instanceof TlsSelfTest.Failure?"No se pudo preparar la conexión segura. Código: "+((TlsSelfTest.Failure)e).code+". Solicita revisión de la app.":"No se pudo conectar. Revisa el Wi-Fi y vuelve a iniciar.";
+                getSystemService(NotificationManager.class).notify(1,notice(this,status));
+            } }
     }
     @Override public void onDestroy() {
         destroyed=true; if(task!=null)task.cancel(true);

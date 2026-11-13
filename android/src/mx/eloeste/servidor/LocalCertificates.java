@@ -16,7 +16,9 @@ import mx.eloeste.core.Security;
 
 /** One CA per installation. Private keys never leave the Android key store. */
 final class LocalCertificates {
-    private static final String ROOT="oeste-local-root-v1",LEAF="oeste-local-server-v1";
+    // Keep the installed CA. v2 renews only the server key with the TLS authorizations
+    // required by Conscrypt; an existing AndroidKeyStore key's policy is immutable.
+    private static final String ROOT="oeste-local-root-v1",LEAF="oeste-local-server-v2";
     static SortedSet<String> wifi(Context c) {
         SortedSet<String> ips=new TreeSet<>(); ConnectivityManager manager=c.getSystemService(ConnectivityManager.class);
         for(Network network:manager.getAllNetworks()) {
@@ -55,7 +57,9 @@ final class LocalCertificates {
             c.getSharedPreferences("private",0).edit().putString("certificateIps",addresses).apply();
         }
         leaf.checkValidity(now); leaf.verify(root.getPublicKey());
-        return LocalServer.tls(leafKeys.getPrivate(),new X509Certificate[]{leaf,root});
+        SSLContext tls=LocalServer.tls(leafKeys.getPrivate(),new X509Certificate[]{leaf,root});
+        TlsSelfTest.verify(tls,root);
+        return tls;
     }
     private static KeyPair pair(KeyStore store,String alias,boolean ca) throws Exception {
         if(store.containsAlias(alias)) return new KeyPair(store.getCertificate(alias).getPublicKey(),(PrivateKey)store.getKey(alias,null));
@@ -64,7 +68,12 @@ final class LocalCertificates {
             .setKeySize(2048).setDigests(KeyProperties.DIGEST_SHA256,KeyProperties.DIGEST_SHA384,KeyProperties.DIGEST_SHA512)
             .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1,KeyProperties.SIGNATURE_PADDING_RSA_PSS)
             .setCertificateSubject(new X500Principal("CN=El Oeste local"));
-        if(!ca) spec.setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1);
+        if(!ca) {
+            // Conscrypt may delegate already-digested, already-padded RSA operations
+            // to AndroidKeyStore. TLS still supplies and verifies its strong padding.
+            spec.setDigests(KeyProperties.DIGEST_NONE,KeyProperties.DIGEST_SHA256,KeyProperties.DIGEST_SHA384,KeyProperties.DIGEST_SHA512)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE,KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1);
+        }
         generator.initialize(spec.build()); return generator.generateKeyPair();
     }
     static byte[] publicCa(Context c) throws Exception { return read(new File(c.getFilesDir(),"local-ca.cer")).getEncoded(); }
