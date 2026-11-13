@@ -8,14 +8,16 @@ El proyecto conserva el motor y la persistencia desarrollados inicialmente. El e
 
 1. Ingresar con usuario y PIN personal de 6 a 12 dígitos.
 2. **Escanear tarjeta:** si está libre abre el ingreso; si está asignada abre la salida. **Usar número** ofrece la misma identificación sin cámara. Escanear no registra entradas ni cobra por sí solo.
-3. **Ingreso:** elegir marca y color en las listas; «Otro» permite escribir. Tipo, placas y servicio se confirman con el vehículo. Sin placas, registrar una seña particular. El lavado toma el precio del tipo seleccionado.
+3. **Ingreso:** elegir marca y color en las listas alfabéticas; «Otro» permite escribir. Tipo, placas y servicio se confirman con el vehículo. Sin placas, registrar una seña particular. El lavado toma el precio del tipo seleccionado.
 4. **Salida:** verificar físicamente el vehículo y confirmar efectivo. «Exacto» y los billetes sugeridos sólo llenan el importe; el servidor recalcula y registra un pago único al confirmar. Se muestra cambio y se vuelve al trabajo.
 5. **Cancelaciones:** una entrada activa o un lavado pendiente requieren autorización de administrador y motivo. Un empleado puede pedir ese PIN dentro de la operación; no cambia de usuario. El registro se conserva en auditoría; no se borran pagos cerrados.
 6. El administrador entra a su resumen del negocio; el empleado a vehículos y escaneo. **Mi actividad** muestra únicamente sus cobros. **Equipo** concentra usuarios y permisos, conserva mayúsculas del nombre visible y permite desactivar accesos manteniendo su historial.
 
+Los desplegables se ordenan por su texto en español, con números en orden natural. Se conserva la selección y el valor real; el aviso «Selecciona…» permanece arriba. Administración distribuye sus accesos en dos columnas en celular, tres en tablet intermedia y cuatro en escritorio. Las acciones de los diálogos se agrupan por propósito y conservan objetivos táctiles de al menos 48 px.
+
 ### Imprimir las 35 tarjetas
 
-Administración → **Tarjetas** → **Descargar PDF carta** o **Imprimir**. Son cinco hojas carta verticales, ocho tarjetas por hoja, con guías de corte. Cada tarjeta mide **85.60 × 53.98 mm**, tamaño bancario ID-1. El QR ocupa la mitad izquierda; a la derecha van marca, nombre, número, únicamente tarifas normales y reglas, incluido el importe por extravío vigente en la configuración. No aparecen precios preferenciales en las tarjetas. Los cinco números de reserva no se activan al imprimir.
+Administración → **Tarjetas** → **PDF carta** o **Imprimir**. Son cinco hojas carta verticales, ocho tarjetas por hoja, con guías de corte. Cada tarjeta mide **85.60 × 53.98 mm**, tamaño bancario ID-1. El QR ocupa la mitad izquierda; a la derecha van marca, nombre, número, únicamente tarifas normales y reglas, incluido el importe por extravío vigente en la configuración. No aparecen precios preferenciales en las tarjetas. Los cinco números de reserva no se activan al imprimir.
 
 En la impresora elegir **Carta y 100 % / Tamaño real**, sin «Ajustar a página»; si se imprime desde el navegador, quitar sus encabezados/pies. Los PDF mantienen QR vectoriales y cuatro módulos blancos de margen. No regeneran los códigos: utilizan los 35 de esa instalación. No compartir el PDF públicamente. Al cambiar tarifas o reemitir un QR, volver a imprimir las tarjetas afectadas.
 
@@ -31,14 +33,15 @@ Toda la configuración está en **Resumen del negocio → Periféricos**. Requie
 
 Las pruebas con transportes simulados no acreditan compatibilidad física, corte, acentos o convivencia con El Muelle. La impresión física debe verificarse con la impresora real, sin cambiar sus permisos ni la báscula de El Muelle.
 
-Una fotografía se mantiene temporalmente en un canvas del teléfono. El OCR se ejecuta con recursos locales; propone una lectura editable de placa. Marca y color se confirman manualmente: no se simula un modelo que no existe. Se liberan cámara, canvas y worker al confirmar, cancelar o salir. La aplicación no escribe fotografías ni las envía al servidor; el navegador o sistema operativo puede mantener memoria temporal fuera del control de la aplicación.
+Una fotografía se mantiene temporalmente en un canvas del teléfono. El OCR se ejecuta con recursos locales; propone una lectura editable de placa. Marca y color se confirman manualmente: no se simula un modelo que no existe. La cámara y el canvas se liberan al cerrar la foto. El lector se prepara al abrir el ingreso y se reutiliza mientras se trabaja en ese formulario; su memoria se libera al salir del ingreso, cerrar sesión u ocultar la página. La lectura comienza al tomar la foto, con un recorte central señalado en pantalla y resultado editable. El modelo ligero y las variantes LSTM/SIMD están incluidos en la aplicación; no se descarga nada de Internet durante la operación. Los recursos públicos del motor se conservan en caché, nunca las fotos. Una inicialización o lectura sin respuesta se interrumpe tras 25 segundos; permite reintentar o continuar manualmente. No se garantiza una lectura instantánea ni exacta en todo dispositivo. La aplicación no escribe fotografías ni las envía al servidor; el navegador o sistema operativo puede mantener memoria temporal fuera del control de la aplicación.
 
 ## Tarifas iniciales
 
 | Modalidad | MXN |
 |---|---:|
-| Hora normal / preferencial | $15 / $10 |
-| Fracción de hasta diez minutos tras una hora completa | +$5, sustituida por la hora completa al superar diez minutos |
+| Normal: primeros diez minutos de cada hora iniciada | $10 |
+| Normal: después de diez minutos y hasta completar esa hora | $15 por esa hora |
+| Preferencial | $10 por hora; conserva la fracción previa de $5 en los primeros diez minutos después de una hora completa |
 | Tiempo libre normal / preferencial | $50 / $60 |
 | Lavado de auto | $120 |
 | Lavado de camioneta / Van | $170 |
@@ -48,6 +51,8 @@ Una fotografía se mantiene temporalmente en un canvas del teléfono. El OCR se 
 | Mensual de 24 horas | $600 por mes |
 | Temporal provisional de hasta 12 horas desde el ingreso | $100 |
 | Extravío de tarjeta | +$100 |
+
+Normal confirmado el 13/11/2026: hasta 10:00 min, $10; después y hasta 60:00, $15; de 60:00.001 a 70:00, $25; después y hasta 120:00, $30. Los cambios se aplican a nuevas entradas. Cada estancia ya abierta conserva su versión de tarifas; los pagos cerrados no se recalculan. La actualización migra la configuración anterior para futuros ingresos y conserva respaldos y QR.
 
 Tiempo libre y complemento de lavado son conceptos separados; durante su cobertura no se suma tarifa horaria. No se invierte la tarifa preferencial de tiempo libre. Lavado solo conserva su precio base; no hay tarifa confirmada de lavado para motos.
 
@@ -77,9 +82,9 @@ La compilación genera una APK **de pruebas**, con clave de desarrollo local exc
 
 ## Instalación en HONOR Pad 8
 
-[Descargar APK de pruebas 0.6.0 para la tablet](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/download/v0.6.0/El-Oeste-0.6.0-pruebas.apk).
+[Descargar APK de pruebas 0.7.0 para la tablet](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/download/v0.7.0/El-Oeste-0.7.0-pruebas.apk).
 
-1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.6.0 encima de la existente, conservando sus datos. No se requiere una computadora para generar certificados.
+1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.7.0 encima de la existente, conservando sus datos. No se requiere una computadora para generar certificados.
 2. Abrir **El Oeste · Servidor**, crear el usuario administrador y su PIN. La app prepara automáticamente una CA y un certificado únicos para esa instalación. Las claves privadas se generan dentro de AndroidKeyStore y no se exportan ni vienen compartidas dentro de la APK.
 3. Cuando indique **Activo**, pulsar **Conectar un celular**. Con el celular en el mismo Wi-Fi, escanear el QR, descargar `El-Oeste-CA.cer` y seguir la guía de autorización del teléfono. La pantalla de la tablet muestra la huella SHA-256 para comprobar que se instala su certificado correcto.
 4. Abrir la dirección `https://IP-DE-LA-TABLET:8443`, entrar con usuario/PIN y agregarla a la pantalla de inicio. Autorizar la cámara al usarla. No omitir advertencias TLS.

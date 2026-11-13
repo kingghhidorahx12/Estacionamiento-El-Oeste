@@ -34,27 +34,39 @@ public final class MainActivity extends Activity {
     private TextView text(String value){TextView t=new TextView(this);t.setText(value);t.setGravity(Gravity.CENTER);t.setTextSize(16);t.setTypeface(face());t.setTextColor(0xff405b70);t.setPadding(0,dp(10),0,dp(10));t.setLineSpacing(dp(3),1);layout.addView(t);return t;}
     private void title(String value){TextView t=text(value);t.setTextSize(25);t.setTextColor(0xff102d48);t.setTypeface(Typeface.createFromAsset(getAssets(),"assets/fonts/Manrope-semibold.ttf"));}
     private Button button(String label,boolean primary,Runnable action){
-        Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTypeface(face());b.setTextSize(16);b.setTextColor(primary?0xfffff9eb:0xff192f36);b.setMinHeight(dp(50));b.setBackground(primary?surface(0xff192f36,0xff192f36):surface(0xffffffff,0xffe8f1f7));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(5),0,dp(9));b.setOnClickListener(v->{try{action.run();}catch(Exception e){toast(e.getMessage()==null?"No se pudo completar.":e.getMessage());}});layout.addView(b,p);return b;
+        Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTypeface(face());b.setTextSize(16);b.setTextColor(primary?0xfffff9eb:0xff192f36);b.setMinHeight(dp(50));b.setStateListAnimator(null);b.setElevation(0);b.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(primary?0x33ffffff:0x22557665),primary?surface(0xff3b7974,0xff224c50):surface(0xfffffdf8,0xfff0e5d1),null));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(5),0,dp(9));b.setOnClickListener(v->{try{action.run();}catch(Exception e){toast(e.getMessage()==null?"No se pudo completar.":e.getMessage());}});layout.addView(b,p);return b;
+    }
+    private void compactActions(android.view.ViewGroup group){
+        if(group instanceof LinearLayout){
+            LinearLayout stack=(LinearLayout)group;int i=0;
+            while(i<stack.getChildCount()){
+                if(!(stack.getChildAt(i) instanceof Button)){i++;continue;}int end=i;while(end<stack.getChildCount()&&stack.getChildAt(end) instanceof Button)end++;
+                if(end-i<2){i=end;continue;}ArrayList<View> buttons=new ArrayList<>();for(int n=i;n<end;n++)buttons.add(stack.getChildAt(n));for(View b:buttons)stack.removeView(b);
+                ActionGrid grid=new ActionGrid(this);stack.addView(grid,i,new LinearLayout.LayoutParams(-1,-2));for(View b:buttons){((Button)b).setPadding(dp(8),dp(8),dp(8),dp(8));((Button)b).setMinHeight(dp(56));grid.addView(b,new android.view.ViewGroup.LayoutParams(-2,-2));}i++;
+            }
+        }
+        for(int i=0;i<group.getChildCount();i++)if(group.getChildAt(i) instanceof android.view.ViewGroup)compactActions((android.view.ViewGroup)group.getChildAt(i));
     }
     private void toast(String value){Toast.makeText(this,value,Toast.LENGTH_LONG).show();}
     private void frame(){
         peripheralScreen=false;printerStatus=null;connectionText=null;backupText=null;statusText=null;urlText=null;activateButton=null;openButton=null;connectButton=null;
-        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setBackground(surface(0xfff5f1e8,0xfff5f1e8));LinearLayout center=new LinearLayout(this);center.setGravity(Gravity.CENTER_HORIZONTAL);center.setOrientation(LinearLayout.VERTICAL);center.setPadding(dp(20),dp(24),dp(20),dp(24));scroll.addView(center);
-        layout=new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);layout.setPadding(dp(22),dp(18),dp(22),dp(22));layout.setBackground(surface(0xfffffdf8,0xfffffdf8));center.addView(layout,new LinearLayout.LayoutParams(Math.min(getResources().getDisplayMetrics().widthPixels-dp(40),dp(620)),-2));
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setBackground(surface(0xffe3eddf,0xfff4ead3));LinearLayout center=new LinearLayout(this);center.setGravity(Gravity.CENTER_HORIZONTAL);center.setOrientation(LinearLayout.VERTICAL);center.setPadding(dp(16),dp(18),dp(16),dp(18));scroll.addView(center);
+        layout=new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);layout.setPadding(dp(18),dp(14),dp(18),dp(18));layout.setBackground(surface(0xfffffefa,0xfff5f4e9));center.addView(layout,new LinearLayout.LayoutParams(Math.min(getResources().getDisplayMetrics().widthPixels-dp(40),dp(620)),-2));
         LinearLayout brand=new LinearLayout(this);brand.setGravity(Gravity.CENTER);brand.setPadding(0,dp(18),0,dp(8));ImageView mark=new ImageView(this);mark.setImageResource(getResources().getIdentifier("oeste_icon","drawable",getPackageName()));brand.addView(mark,new LinearLayout.LayoutParams(dp(52),dp(52)));
         TextView word=new TextView(this);word.setText("EL OESTE\nESTACIONAMIENTO");word.setGravity(Gravity.CENTER);word.setTextColor(0xff102d48);word.setTextSize(19);word.setTypeface(Typeface.createFromAsset(getAssets(),"assets/fonts/Rye-Regular.ttf"));word.setPadding(dp(14),0,0,0);brand.addView(word);layout.addView(brand);
-        getWindow().setStatusBarColor(0xff102d48);getWindow().setNavigationBarColor(0xff102d48);setContentView(scroll);
+        layout.addView(new PatioScene(this),new LinearLayout.LayoutParams(-1,dp(76)));
+        getWindow().setStatusBarColor(0xff234e4d);getWindow().setNavigationBarColor(0xff234e4d);setContentView(scroll);
     }
     private void show(){
         updateScreen=false;connecting=false;closeSharing();frame();
         if(!prefs().contains("pinHash")){
             title("Prepara tu estacionamiento");text("Conecta esta tablet al Wi-Fi del negocio y crea el acceso del administrador. La conexión segura se prepara automáticamente.");EditText name=field("Usuario administrador",false),pin=field("PIN personal · 6 a 12 dígitos",true);pin.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD);
-            button("Crear acceso y preparar conexión",true,()->{String password=pin.getText().toString();Security.pin(password);AndroidDb db=new AndroidDb(this);try{Api api=new Api(db);if(api.needsSetup())api.bootstrap(name.getText().toString().trim().toLowerCase(Locale.ROOT),password);String salt=Security.random();prefs().edit().putString("pinSalt",salt).putString("pinHash",Security.password(password,salt)).apply();unlocked=true;startForegroundService(new Intent(this,ServerService.class));show();}finally{db.close();}});return;
+            button("Crear acceso y preparar conexión",true,()->{String password=pin.getText().toString();Security.pin(password);AndroidDb db=new AndroidDb(this);try{Api api=new Api(db);if(api.needsSetup())api.bootstrap(name.getText().toString().trim(),password);String salt=Security.random();prefs().edit().putString("pinSalt",salt).putString("pinHash",Security.password(password,salt)).apply();unlocked=true;startForegroundService(new Intent(this,ServerService.class));show();}finally{db.close();}});return;
         }
         if(!unlocked){
             title("Servidor del estacionamiento");statusText=text(ServerService.status);statusText.setTextSize(27);statusText.setTypeface(Typeface.createFromAsset(getAssets(),"assets/fonts/Manrope-semibold.ttf"));
             connectionText=text("");backupText=text("");connectButton=button("Conectar un celular",true,()->connectPhone());
-            button("Administración",false,()->unlockScreen());text("Puedes volver a El Muelle. El bloqueo de esta pantalla no detiene el servidor.");updateStatus();return;
+            button("Administración",false,()->unlockScreen());text("Puedes volver a El Muelle. El bloqueo de esta pantalla no detiene el servidor.");updateStatus();compactActions(layout);return;
         }
         title("Administración de la tablet");statusText=text(ServerService.status);urlText=text(LocalCertificates.url(this));urlText.setTextIsSelectable(true);urlText.setTextSize(18);urlText.setTextColor(0xff123d60);
         activateButton=button("Activar conexión",true,()->{startForegroundService(new Intent(this,ServerService.class));toast("Preparando la conexión…");});
@@ -67,15 +79,15 @@ public final class MainActivity extends Activity {
         button("Guardar consulta remota",false,()->{String url=syncUrl.getText().toString().trim(),token=syncToken.getText().toString();Rules.require(url.isEmpty()||url.matches("https://[a-zA-Z0-9.-]+/ingest"),"Usa la URL HTTPS exacta del Worker.");Rules.require(url.isEmpty()||token.length()>=32||prefs().getString("syncToken","").length()>=32,"Token: mínimo 32 caracteres.");android.content.SharedPreferences.Editor e=prefs().edit().putString("syncUrl",url);if(!token.isEmpty())e.putString("syncToken",token);e.apply();toast("Configuración guardada");});
         text("Certificado externo · sólo para una instalación administrada. Se conserva la compatibilidad con archivos importados anteriormente.");tlsPassword=field("Contraseña del archivo PKCS12",true);button("Importar certificado externo",false,()->{Intent choose=new Intent(Intent.ACTION_OPEN_DOCUMENT);choose.setType("*/*");choose.addCategory(Intent.CATEGORY_OPENABLE);choosingCertificate=true;startActivityForResult(choose,22);});
         button("Detener servidor",false,()->{prefs().edit().putBoolean("serverWanted",false).apply();stopService(new Intent(this,ServerService.class));updateStatus();});        button("Diagnóstico del servidor",false,()->new AlertDialog.Builder(this).setTitle("Estado y recuperación").setMessage("Estado: "+ServerService.status+"\nÚltima comprobación local: "+stamp(ServerService.checkedAt)+"\n\n"+ServerService.diagnostics()+"\n\nÚltimo registro conservado:\n"+prefs().getString("serverLastEvent","Sin registro anterior")).setPositiveButton("Cerrar",null).show());
-        layout=parent;button("Bloquear configuración",false,()->{unlocked=false;show();});updateStatus();
+        layout=parent;button("Bloquear configuración",false,()->{unlocked=false;show();});updateStatus();compactActions(layout);
     }
     private void showPeripherals(){
         if(!unlocked)return;frame();peripheralScreen=true;title("Periféricos");text("Impresora térmica USB o LAN. La configuración y los equipos se muestran sólo en esta sección.");printerStatus=text("");
         button("Configurar impresora",true,()->{String url=LocalCertificates.url(this);Rules.require(!url.isEmpty(),"Activa la conexión local primero.");startActivity(new Intent(Intent.ACTION_VIEW,android.net.Uri.parse(url+"/?view=perifericos")));});
-        button("Autorizar impresora USB elegida",false,()->toast(ThermalPrinter.get(this).requestUsbPermission()));
-        button("Comprobar LAN sin imprimir",false,()->{ThermalPrinter.get(this).action("probe",new org.json.JSONObject());refreshPrinterStatus();});
+        button("Autorizar USB",false,()->toast(ThermalPrinter.get(this).requestUsbPermission()));
+        button("Comprobar LAN",false,()->{ThermalPrinter.get(this).action("probe",new org.json.JSONObject());refreshPrinterStatus();});
         button("Imprimir prueba",false,()->{ThermalPrinter.get(this).action("test",new org.json.JSONObject());refreshPrinterStatus();});
-        button("Volver a administración",false,()->show());refreshPrinterStatus();
+        button("Volver a administración",false,()->show());refreshPrinterStatus();compactActions(layout);
     }
     private void refreshPrinterStatus(){if(printerStatus==null)return;org.json.JSONObject info=ThermalPrinter.get(this).snapshot();org.json.JSONObject profile=info.getJSONObject("profile");printerStatus.setText((info.getBoolean("configured")?"Conexión guardada: "+profile.getString("transport").toUpperCase(java.util.Locale.ROOT):"Sin impresora configurada")+"\n"+info.getJSONObject("job").getString("message"));}
     private void unlockScreen(){connecting=false;frame();
@@ -97,7 +109,7 @@ public final class MainActivity extends Activity {
         updateText=text("");updateCheck=button("Buscar y preparar actualización",true,()->{AppUpdates.get(this).prepareUpdate();refreshUpdateScreen();});
         updateInstall=button("Instalar actualización",true,()->installUpdate());
         text("La descarga requiere Internet. Se comprueba que el archivo pertenezca a El Oeste y tenga la misma firma de esta instalación. Android te pedirá confirmar. Se conservan los datos y el certificado de la tablet.");
-        button("Volver",false,()->{updateAuthorized=false;updateScreen=false;show();});refreshUpdateScreen();
+        button("Volver",false,()->{updateAuthorized=false;updateScreen=false;show();});refreshUpdateScreen();compactActions(layout);
     }
     private void refreshUpdateScreen(){if(updateText==null)return;org.json.JSONObject value=AppUpdates.get(this).status();String state=value.optString("state");updateText.setText(value.optString("message")+(state.equals("downloading")?"\n"+value.optInt("progress")+" %":""));updateCheck.setEnabled(!state.equals("checking")&&!state.equals("downloading"));updateInstall.setVisibility(state.equals("ready")?View.VISIBLE:View.GONE);}
     private void installUpdate(){

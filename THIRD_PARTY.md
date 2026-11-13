@@ -10,7 +10,7 @@ Los recursos web se sirven desde la tablet, sin CDN en tiempo de operación.
 | jsQR 1.4.0 | Lectura QR local, Apache-2.0. | https://github.com/cozmo/jsQR |
 | qrcode-generator 1.4.4 | Generación vectorial de tarjetas, MIT. | https://github.com/kazuhikoarase/qrcode-generator |
 | Tesseract.js y core 5.1.1 | OCR local, Apache-2.0. | https://github.com/naptha/tesseract.js |
-| Modelo inglés Tesseract | Lectura tentativa de placas, Apache-2.0. | https://github.com/tesseract-ocr/tessdata |
+| Modelo inglés Tesseract fast | Lectura tentativa de placas, Apache-2.0. | https://github.com/naptha/tessdata/tree/gh-pages/4.0.0_fast |
 | JSON-java 20250517 | JSON en pruebas y compilación, licencia incluida por el proyecto. Android usa su implementación del sistema. | https://github.com/stleary/JSON-java |
 | SQLite JDBC 3.50.3.0 | Base del host de desarrollo, Apache-2.0 / BSD según componentes. No se incluye en el runtime Android. | https://github.com/xerial/sqlite-jdbc |
 | SLF4J 2.0.17 | Adaptador del host de pruebas, MIT. | https://www.slf4j.org/ |
@@ -18,3 +18,5 @@ Los recursos web se sirven desde la tablet, sin CDN en tiempo de operación.
 Los scripts fijan versiones. Los avisos de los archivos originales se conservan; no se ha copiado identidad ni ilustraciones comerciales de El Muelle. Los archivos descargados deben acompañarse de los avisos de licencia en `web/vendor/licenses/` al redistribuir.
 
 La marca vigente es una fachada comercial simplificada con letras EO y rótulo Rye. Se compone con geometría y contornos tipográficos propios del proyecto mediante `scripts/BrandAssets.java`; no copia la marca de El Muelle. Inspiración: fachadas comerciales descritas por el [National Park Service](https://www.nps.gov/klgo/learn/historyculture/boas.htm) y rótulos de madera del siglo XIX documentados por [Smithsonian](https://americanhistory.si.edu/collections/archival-item/sova-nmah-ac-0060-s01-01-lumber-ref70). La ilustración conceptual anterior `oeste-panorama.png` se conserva como recurso histórico, sin colocarse detrás de información operativa.
+
+La ilustración vectorial `oeste-patio.svg` y su adaptación nativa `PatioScene` son originales de este proyecto. La composición toma como referencia de uso los gradientes y superficies de El Muelle; no se copian su identidad ni sus ilustraciones. OCR usa exclusivamente LSTM, con variantes SIMD y compatible incluidas; los hashes y tamaños están fijados en `dependencies.lock.json`.

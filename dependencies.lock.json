@@ -1,7 +1,7 @@
 {
   "web/vendor/eng.traineddata.gz": {
-    "sha256": "ed350f3752f81ee8f38769edc14d92d997dababe23b565c59879372cc46a2468",
-    "bytes": 10923060
+    "sha256": "18c1ac52b75e35d44735fb6c2a60acfaf23033524653200738e98f0243edb75b",
+    "bytes": 1984273
   },
   "web/vendor/jsQR.js": {
     "sha256": "bc40c8a15196236b2314db0856f72ca0b49980cd5413b8c852a7349f5fee0859",
@@ -42,5 +42,13 @@
   ".dev/lib/sqlite.jar": {
     "sha256": "a3f53a2aa15ae9425a9e793bbe9c8e5288febeb4b65ef5c1a4e80d4c2045cf08",
     "bytes": 14346720
+  },
+  "web/vendor/tesseract-core-simd-lstm.wasm.js": {
+    "sha256": "ce20eda9533cbed1e6c2b4276fbae1e0adc61b6754b5513084be601787b457cf",
+    "bytes": 3938657
+  },
+  "web/vendor/tesseract-core-simd-lstm.wasm": {
+    "sha256": "66b601224a0c4a8977bc9d92dd39841189f9ca22cc4122fcd7208cdb0961eeef",
+    "bytes": 2859709
   }
 }

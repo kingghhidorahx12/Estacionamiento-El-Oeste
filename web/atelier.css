@@ -4,3 +4,68 @@
 .wordmark{display:flex;justify-content:center;align-items:center;gap:12px;flex-shrink:0}.wordmark img{width:52px;height:52px}.wordmark>span{font:400 25px/1.2 Rye,Georgia,serif}.wordmark small{display:block;font:700 9px/1.6 Manrope,sans-serif;letter-spacing:2px;margin-top:5px}
 .login-shell{min-height:100dvh;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:7vw;padding:60px 8vw;background:repeating-linear-gradient(90deg,transparent 0 110px,#182f3605 110px 111px),#f0eadf}.login-landscape{padding:64px 25px;text-align:center;position:relative;border-block:double 5px #b18a49}.login-landscape:before{content:'';position:absolute;width:96px;height:20px;top:-22px;left:calc(50% - 48px);border:double 5px #b18a49;border-bottom:0;border-radius:50% 50% 0 0;background:#f0eadf}.login-landscape .wordmark{flex-direction:column;gap:24px}.login-landscape .wordmark img{width:150px;height:150px}.login-landscape .wordmark>span{font-size:clamp(34px,4vw,60px)}.login-landscape .wordmark small{font-size:12px;letter-spacing:4px}.login-copy{margin-top:30px}.login-copy h1{font-size:17px;font-weight:600;letter-spacing:0}.login-copy .eyebrow,.landscape-caption{display:none}.login-form{width:100%;max-width:440px;margin:auto;padding:34px;background:#fffdf8;border:1px solid #c5bba8;border-radius:22px 22px 7px 7px;box-shadow:0 5px 0 #e2d8c5,0 18px 50px #192f3610}.section-index{font-size:12px;letter-spacing:1.4px;font-weight:700}.login-form h2{font-size:30px;margin:13px 0 8px}.login-form label{margin-top:23px;text-align:center}.login-form .primary{width:100%;margin-top:24px;justify-content:center}.login-form .fine{margin-top:22px}.login-form .error{margin-top:12px}
 @media(max-width:700px){.wordmark{gap:7px}.wordmark img{width:43px;height:43px}.wordmark>span{font-size:21px}.wordmark small{font-size:7px;letter-spacing:1.2px}.login-shell{grid-template-columns:1fr;padding:28px 20px 40px;gap:30px}.login-landscape{padding:20px;border:0}.login-landscape:before,.login-copy{display:none}.login-landscape .wordmark{flex-direction:row;justify-content:center;text-align:center;gap:16px}.login-landscape .wordmark img{width:80px;height:80px}.login-landscape .wordmark>span{font-size:34px}.login-landscape .wordmark small{font-size:8px;letter-spacing:2px}.login-form{padding:25px}}
+
+/* El Muelle reference: layered light surfaces, tonal gradients, illustrated
+   identity and restrained rounded controls. El Oeste keeps its own EO facade. */
+:root{--ink:#203f40;--muted:#50615e;--paper:#f4f1e9;--white:#fffefa;--line:#cbd2c7;--accent:#79572e}
+body{background:radial-gradient(ellipse at 5% 0,#dcebe5 0,transparent 42%),radial-gradient(ellipse at 100% 35%,#eee1c6 0,transparent 45%),#f4f1e9}
+.primary,.secondary,.danger,.ghost,.icon-button,.operation-dock button{border-radius:12px;box-shadow:none}
+.primary,.operation-dock .dock-entry{background:linear-gradient(135deg,#397670,#214b50);border-color:#305d5c;color:#fff;box-shadow:inset 0 1px 0 #ffffff26,0 4px 12px #234d4d15}
+.secondary,.operation-dock .dock-exit{background:linear-gradient(145deg,#fffefa,#f0eadc);border-color:#bec9bd;color:#244646;box-shadow:inset 0 1px 0 #fff}
+.danger{background:linear-gradient(145deg,#fff8f2,#f6e4dc);border-color:#d2b1a3;color:#883e30}
+.ghost,.icon-button{background:linear-gradient(145deg,#ffffffb3,#f0f1e7a8);border-color:#c4cfc3}
+button{transition:background-color .15s,border-color .15s,transform .15s}
+button:active:not(:disabled){transform:translateY(1px)}
+button:focus-visible,summary:focus-visible{outline-color:#9a6c2a}
+input,select,textarea{background:#fffefa;border-color:#9cafa3;border-radius:10px}
+input:focus,select:focus,textarea:focus{border-color:#3f7068;outline-color:#3f7068}
+.topbar{background:radial-gradient(ellipse at 12% 110%,#c7ddd2a8,transparent 50%),linear-gradient(105deg,#e7eee4,#fff8e7 55%,#e3e9d9);border-bottom:1px solid #c4d0bd}
+.topbar:before,.topbar:after{content:'';position:absolute;pointer-events:none;width:115px;height:40px;bottom:0;border:1px solid #8ba88b40;border-radius:60% 60% 0 0;border-bottom:0}
+.topbar:before{left:3%;transform:skew(-25deg)}.topbar:after{right:3%;transform:skew(25deg)}
+.workspace-nav{align-items:center;gap:6px;min-height:68px;border-bottom:0}
+.workspace-nav button{min-height:48px;border:1px solid transparent;border-radius:12px;padding:10px 16px;justify-content:center}
+.workspace-nav button.active{border:1px solid #bdcdbf;background:linear-gradient(135deg,#fffdf4,#e1ede1);box-shadow:0 3px 12px #2d55420b;color:#244d45}
+.panel{background:linear-gradient(140deg,#fffefa,#faf8ef);border:1px solid #cbd3c5;border-radius:17px;box-shadow:0 6px 24px #294d3806}
+.note{border:1px solid #d8c398;border-radius:12px;background:linear-gradient(125deg,#fff8e8,#f4edd9);color:#654b25}
+.good-note{background:linear-gradient(125deg,#f4f9ee,#e7f0e2);border-color:#adc3a2;color:#2d563c}
+.admin-link{position:relative;background:linear-gradient(135deg,#fffefa,#edf3e9);border:1px solid #c4d2c1;border-radius:16px;box-shadow:0 4px 16px #2b4c3608}
+.admin-link:nth-child(3n+2){background:linear-gradient(135deg,#fffdf5,#f2e8d1);border-color:#d8c8a9}
+.admin-link:nth-child(3n){background:linear-gradient(135deg,#fbfefb,#e0edeb);border-color:#bdd1cb}
+.admin-link>.i:first-child{box-sizing:content-box;padding:10px;border-radius:13px;background:#dceade;color:#356253}
+.admin-link:nth-child(3n+2)>.i:first-child{background:#efe0bb;color:#846235}
+.admin-link:nth-child(3n)>.i:first-child{background:#d3e6e2;color:#34666a}
+.admin-link>.i:last-child{display:none}
+.business-ledger{border:1px solid #c5d4c4;border-radius:18px;background:linear-gradient(110deg,#e7efe3,#fff7e3 55%,#e6eee0);padding:22px 18px;margin-bottom:14px}
+.ledger-income>strong{color:#254e49}.ledger-occupancy{border-color:#b7c9b7}
+.work-status{padding:12px;border:1px solid #c1d0c0;border-radius:14px;background:linear-gradient(110deg,#e3eddf,#faf3df);gap:12px}
+.work-status>span+span{border-left:1px solid #beccb7}
+.income-breakdown{gap:10px}.income-breakdown>div{border:1px solid #d7d5c4;border-radius:14px;padding:14px 12px;background:linear-gradient(140deg,#fffefa,#f2f0e4)}
+.vehicle-row{background:linear-gradient(115deg,#fffefa,#f8f8ee);border:1px solid #c1d0c1;border-radius:15px;margin-top:12px;box-shadow:0 4px 16px #294d3606}
+.vehicle-row .icon-button{background:linear-gradient(135deg,#edf4e8,#dce9db);border-color:#adc4b1}
+.pill{border-radius:7px}.qr-card{border-radius:14px;background:linear-gradient(140deg,#fffefa,#f4efde)}
+dialog{background:#fffefa;border:1px solid #b7c8b8;border-radius:20px;box-shadow:0 20px 80px #15393238}
+dialog::backdrop{background:#173738b3;backdrop-filter:blur(3px)}
+.modal-heading{padding-bottom:15px;border-bottom:1px solid #dbe1d3;margin-bottom:18px}
+.modal-heading h2{font-size:23px}.modal-heading .icon-button{border:0;background:transparent}
+.modal-actions{gap:10px}.checkout-secondary{grid-template-columns:repeat(2,minmax(0,1fr));border-color:#d8dfd0}
+.cash-choices button{padding-inline:3px;font-size:13px}.cash-choices button:first-child{background:linear-gradient(140deg,#f2f8ec,#ddebd8);border-color:#7c9e79}
+.checkout-dialog>div>h2.gap-top{margin-top:12px}.checkout-dialog>div>p.fine.gap-top{margin-top:10px}
+#checkout-form .summary-total{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0;padding:12px;background:#edf3e7;border-radius:12px}
+#checkout-form .summary-total strong{font-size:32px}#checkout-form .checkbox-row{padding:12px}
+.period-shortcuts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.period-shortcuts>button{padding-inline:8px;font-size:13px}
+.peripheral-panel label:has(select[name=transport]){grid-column:1/-1}
+.camera-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.camera-actions>button:first-child:not([hidden]){grid-column:1/-1}
+.plate-camera{position:relative}.plate-guide{position:absolute;pointer-events:none;left:5%;right:5%;top:27%;bottom:27%;border:2px solid #fff4c3;border-radius:12px;box-shadow:0 0 0 2px #203f405c}
+.login-shell{background:radial-gradient(ellipse at 12% 20%,#d7e8dd,transparent 55%),linear-gradient(125deg,#f1efdf,#f8edcf)}
+.login-landscape{border:0;padding:10px 0}.login-landscape:before{display:none}.login-landscape .wordmark img{width:100px;height:100px}.login-landscape .wordmark{gap:14px}
+.login-patio{display:block;width:100%;max-width:590px;margin:24px auto 0}.login-copy{margin-top:10px}.login-form{border-radius:20px;border-color:#bbcdbb;background:linear-gradient(145deg,#fffefa,#f8f8ed);box-shadow:0 15px 50px #294d3a0c}
+.empty .big{width:240px;height:100px;margin:0 auto 16px;background:url('/assets/oeste-patio.svg') center/contain no-repeat}.empty .big>.i{display:none}
+@media(hover:hover){.admin-link:hover,.secondary:hover{border-color:#88a58b}.primary:hover{background:linear-gradient(135deg,#43837a,#28575a)}}
+@media(max-width:700px){.topbar{min-height:104px;padding:10px 16px;gap:6px}.workspace-nav{min-height:62px;margin-bottom:16px}.workspace-nav button{font-size:12px;padding:9px 11px}.panel{padding:18px 15px}.admin-link{min-height:112px}.admin-link>.i:first-child{padding:8px}.business-ledger{padding:16px 12px;gap:12px}.income-breakdown>div{padding:13px 7px}.operation-dock{background:linear-gradient(110deg,#f3f5e9,#f6efdc);padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom))}.operation-dock button{border-radius:13px;min-height:56px;font-size:14px;padding-inline:10px}.login-landscape .wordmark img{width:68px;height:68px}.login-patio{max-width:300px;margin:5px auto -10px}.login-shell{gap:18px;padding-top:20px}.login-form{padding:22px}.login-form label{margin-top:18px}.modal-heading h2{font-size:21px}.cash-choices button{font-size:12px}.checkout-secondary>button{font-size:13px}.work-status small{font-size:11px}}
+@media(prefers-reduced-motion:reduce){button{transition:none}}
+
+.admin-grid+.overview-columns{margin-top:22px}@media(max-width:700px){.income-breakdown{grid-template-columns:repeat(3,minmax(0,1fr))}.income-breakdown:has(>div:nth-child(4)){grid-template-columns:repeat(2,minmax(0,1fr))}.income-breakdown span{font-size:11px;letter-spacing:-.3px}.income-breakdown b{font-size:20px}}
+
+.admin-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}.admin-link{flex:0 0 calc((100% - 36px)/4);min-width:0}
+@media(max-width:1150px){.admin-link{flex-basis:calc((100% - 24px)/3)}}
+@media(max-width:700px){.admin-grid{gap:10px}.admin-link{flex-basis:calc((100% - 10px)/2)}}

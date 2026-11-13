@@ -7,7 +7,7 @@ public final class Rules {
     private Rules() {}
     public static final String ZONE = "America/Mexico_City";
     public static JSONObject defaults() {
-        return new JSONObject("{\"ordinary\":1500,\"preferred\":1000,\"partial\":500,\"graceMinutes\":10,"
+        return new JSONObject("{\"ordinary\":1500,\"preferred\":1000,\"partial\":500,\"normalPartial\":1000,\"normalFromStart\":true,\"graceMinutes\":10,"
             + "\"wash\":{\"auto\":12000,\"camioneta\":17000,\"van\":17000,\"pickup\":20000},"
             + "\"dayAddon\":3000,\"freeNormal\":5000,\"freePreferred\":6000,\"opening\":null,\"closing\":null,"
             + "\"monthly\":[{\"id\":\"12h\",\"name\":\"Mensual 12 horas\",\"hours\":12,\"price\":50000},{\"id\":\"24h\",\"name\":\"Mensual 24 horas\",\"hours\":24,\"price\":60000}],"
@@ -17,6 +17,11 @@ public final class Rules {
     public static long hourly(long elapsedMs, boolean preferred, JSONObject c) {
         require(elapsedMs >= 0, "La salida no puede preceder a la entrada.");
         long rate = c.getLong(preferred ? "preferred" : "ordinary");
+        if(!preferred&&c.optBoolean("normalFromStart")) {
+            long whole=elapsedMs/3600000,rem=elapsedMs%3600000,window=c.getLong("graceMinutes")*60000;
+            if(elapsedMs==0) return window>0?c.getLong("normalPartial"):rate;
+            return whole*rate+(rem==0?0:rem<=window?c.getLong("normalPartial"):rate);
+        }
         if (elapsedMs <= 3600000) return rate;
         long whole = elapsedMs / 3600000, rem = elapsedMs % 3600000;
         return whole * rate + (rem == 0 ? 0 : rem <= c.getLong("graceMinutes") * 60000 ? c.getLong("partial") : rate);
@@ -87,6 +92,7 @@ public final class Rules {
     }
     public static void validateConfig(JSONObject c) {
         for (String key : new String[]{"ordinary","preferred","partial","dayAddon","lostCard","freeNormal","freePreferred"}) amount(c,key);
+        if(c.optBoolean("normalFromStart")) require(amount(c,"normalPartial")<=c.getLong("ordinary"),"La fracción normal no puede superar la hora completa.");
         require(integer(c,"graceMinutes") >= 0 && c.getInt("graceMinutes") < 60, "Minutos parciales inválidos.");
         for (String type : new String[]{"auto","camioneta","van","pickup"}) amount(c.getJSONObject("wash"),type);
         require(c.getJSONArray("monthly").length() == 2, "Se requieren las dos modalidades mensuales.");
