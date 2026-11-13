@@ -41,17 +41,18 @@ public final class ExperienceTests {
             String nameId=db.one("SELECT id FROM users WHERE name='empleadouno'").getString("id");owner.post("user-update",new JSONObject().put("id",nameId).put("role","employee").put("active",true).put("pin","").put("displayName","Empleado Uno"));
             ok(employee.get("state").getString("name").equals("Empleado Uno"),"visible rename preserves valid session and actor history");
             ok(web(api,owner,"GET","state",new JSONObject(),true).status==200,"interactive web activity accepted");
-            time.addAndGet(299999);ok(web(api,owner,"GET","state",new JSONObject(),false).status==200,"polling does not yet lock");
-            time.incrementAndGet();Api.Reply locked=web(api,owner,"GET","state",new JSONObject(),true);ok(locked.status==423&&locked.json.getBoolean("locked"),"idle checked before new activity; background polls cannot extend");
-            ok(web(api,employee,"GET","state",new JSONObject(),false).status==200,"separate employee fifteen-minute policy");
-            Api.Reply unlocked=web(api,owner,"POST","unlock",new JSONObject().put("name","ownercase").put("password","65432198"),true);ok(unlocked.status==200&&unlocked.cookie!=null,"unlock rotates session");
-            ok(web(api,owner,"GET","state",new JSONObject(),false).status==401,"old session invalid after unlock");
-            owner=new OesteTests.Client(api,"ownercase","65432198");ok(owner.post("access-policy",new JSONObject().put("adminMinutes",8).put("employeeMinutes",20)).status==200,"idle configurable independently of rates");
-            ok(employee.post("access-policy",new JSONObject().put("adminMinutes",120).put("employeeMinutes",120)).status==400,"employee cannot expand access timeout");
+            db.exec("INSERT OR REPLACE INTO meta VALUES('accessPolicy',?)","{\"adminMinutes\":1,\"employeeMinutes\":1}");
+            time.addAndGet(300000);ok(web(api,owner,"GET","state",new JSONObject(),false).status==200,"legacy five-minute idle no longer locks administrator");
+            time.addAndGet(3600000);ok(web(api,owner,"GET","state",new JSONObject(),false).status==200,"administrator remains signed in after an idle hour");
+            ok(web(api,employee,"GET","state",new JSONObject(),false).status==200,"employee remains signed in after an idle hour");
+            ok(!owner.get("state").has("accessPolicy"),"obsolete inactivity controls not exposed");
+            ok(owner.post("access-policy",new JSONObject().put("adminMinutes",1).put("employeeMinutes",1)).status==400,"obsolete endpoint cannot re-enable inactivity");
+            ok(web(api,owner,"POST","logout",new JSONObject(),false).status==200,"manual logout remains available");
+            ok(web(api,owner,"GET","state",new JSONObject(),false).status==401,"manual logout revokes the session");owner=new OesteTests.Client(api,"ownercase","65432198");
             ok(api.recentConnections()==1,"authenticated browser presence bounded and counted");time.addAndGet(180001);ok(api.recentConnections()==0,"presence expires without fake active devices");
             JSONObject backup=Backups.export(db,"synthetic-backup-test-123",time.get());db.begin();try{Backups.restore(db,backup,"synthetic-backup-test-123");db.commit();}catch(Exception e){db.rollback();throw e;}
             ok(db.one("SELECT display_name FROM users WHERE name='empleadouno'").getString("display_name").equals("Empleado Uno"),"display name survives encrypted restore");
         }
-        System.out.println("PASS · "+checks+" checks: scan routing, cancellations, display names, idle protection and persistence.");
+        System.out.println("PASS · "+checks+" checks: scan routing, cancellations, display names, no idle lock and persistence.");
     }
 }

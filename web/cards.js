@@ -4,8 +4,8 @@ const CARD_PRINT={width:85.6,height:53.98,gap:8,perPage:8,pageWidth:215.9,pageHe
 function cardPrintCopy(config){
   const price=n=>'$'+new Intl.NumberFormat('es-MX',{maximumFractionDigits:2}).format(n/100);
   const washes=Object.values(config.wash);
-  return {hour:`Hora ${price(config.ordinary)} · Preferencial ${price(config.preferred)}`,
-    free:`Tiempo libre ${price(config.freeNormal)} · Pref. ${price(config.freePreferred)}`,
+  return {hour:`Hora ${price(config.ordinary)}`,
+    free:`Tiempo libre ${price(config.freeNormal)}`,
     wash:`Lavados desde ${price(Math.min(...washes))}`,
     addon:`Jornada +${price(config.dayAddon)} sólo con lavado`,
     loss:`Extravío de tarjeta: ${price(config.lostCard)}`,

@@ -42,7 +42,7 @@ public final class ServerService extends Service {
     private void tick(){
         try{
             if(destroyed)return;
-            if(database==null){database=new AndroidDb(this);api=new Api(database,System::currentTimeMillis,AppUpdates.get(this));activeApi=api;}
+            if(database==null){database=new AndroidDb(this);api=new Api(database,System::currentTimeMillis,new TabletApplication(this));activeApi=api;}
             if(api.needsSetup())throw new IllegalStateException("setup");
             String current=String.join(",",LocalCertificates.wifi(this));
             if(current.isEmpty()){state("wifi","Sin Wi-Fi · los datos siguen guardados");return;}

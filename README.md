@@ -15,11 +15,21 @@ El proyecto conserva el motor y la persistencia desarrollados inicialmente. El e
 
 ### Imprimir las 35 tarjetas
 
-Administración → **Tarjetas** → **Descargar PDF carta** o **Imprimir**. Son cinco hojas carta verticales, ocho tarjetas por hoja, con guías de corte. Cada tarjeta mide **85.60 × 53.98 mm**, tamaño bancario ID-1. El QR ocupa la mitad izquierda; a la derecha van marca, nombre, número, tarifas principales y reglas, incluido el importe por extravío vigente en la configuración. Los cinco números de reserva no se activan al imprimir.
+Administración → **Tarjetas** → **Descargar PDF carta** o **Imprimir**. Son cinco hojas carta verticales, ocho tarjetas por hoja, con guías de corte. Cada tarjeta mide **85.60 × 53.98 mm**, tamaño bancario ID-1. El QR ocupa la mitad izquierda; a la derecha van marca, nombre, número, únicamente tarifas normales y reglas, incluido el importe por extravío vigente en la configuración. No aparecen precios preferenciales en las tarjetas. Los cinco números de reserva no se activan al imprimir.
 
 En la impresora elegir **Carta y 100 % / Tamaño real**, sin «Ajustar a página»; si se imprime desde el navegador, quitar sus encabezados/pies. Los PDF mantienen QR vectoriales y cuatro módulos blancos de margen. No regeneran los códigos: utilizan los 35 de esa instalación. No compartir el PDF públicamente. Al cambiar tarifas o reemitir un QR, volver a imprimir las tarjetas afectadas.
 
-El bloqueo web por inactividad conserva el formulario abierto y pide el mismo PIN para continuar, sin cobrar al volver. Valores técnicos iniciales **propuestos**: administrador 5 minutos y empleado 15; configurables en Equipo. La sesión tiene un máximo de 12 horas. El bloqueo de mantenimiento nativo es independiente, inicialmente 5 minutos y configurable en Opciones avanzadas; no detiene el servicio ni cambia el bloqueo de pantalla de Android.
+No hay bloqueo por inactividad en las cuentas ni en el mantenimiento nativo. Continúan disponibles Cerrar sesión y Bloquear configuración de forma manual. El máximo absoluto de sesión existente de 12 horas y las autorizaciones por PIN para acciones administrativas se conservan; son independientes de la inactividad y del bloqueo de pantalla de Android.
+
+### Configurar la impresora térmica
+
+Toda la configuración está en **Resumen del negocio → Periféricos**. Requiere el servidor Android. El formato de partida corresponde al configurador de El Muelle: **80 mm, 48 caracteres, ESC/POS, sin acentos, página 0 y ocho líneas finales**. También permite 58 mm, codificación y cortador configurables. No importa preferencias privadas de El Muelle; la IP y el dispositivo se eligen en esta instalación.
+
+- **LAN:** conectar impresora y tablet a la misma red, registrar la IP de la impresora y su puerto (normalmente 9100), guardar, comprobar conexión y después imprimir una prueba. La comprobación TCP no mueve papel.
+- **USB:** elegir una impresora detectada y guardar. En la tablet abrir **El Oeste · Servidor → Administración → Periféricos → Autorizar impresora USB elegida** y confirmar el diálogo de Android. Después imprimir la prueba. Se muestran interfaces de impresora, no básculas. No se fuerza la liberación de una interfaz ocupada por otra app; LAN permite evitar esa disputa si el equipo la admite.
+- **Comprobantes:** el historial de pagos ofrece imprimir una copia del pago existente. El empleado sólo imprime sus cobros. No vuelve a cobrar ni cambia el reporte. Si falla o no queda confirmado el envío, revisar papel y conexión antes de reenviar; no hay reintento automático de impresión.
+
+Las pruebas con transportes simulados no acreditan compatibilidad física, corte, acentos o convivencia con El Muelle. La impresión física debe verificarse con la impresora real, sin cambiar sus permisos ni la báscula de El Muelle.
 
 Una fotografía se mantiene temporalmente en un canvas del teléfono. El OCR se ejecuta con recursos locales; propone una lectura editable de placa. Marca y color se confirman manualmente: no se simula un modelo que no existe. Se liberan cámara, canvas y worker al confirmar, cancelar o salir. La aplicación no escribe fotografías ni las envía al servidor; el navegador o sistema operativo puede mantener memoria temporal fuera del control de la aplicación.
 
@@ -67,9 +77,9 @@ La compilación genera una APK **de pruebas**, con clave de desarrollo local exc
 
 ## Instalación en HONOR Pad 8
 
-[Descargar APK de pruebas 0.5.0 para la tablet](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/download/v0.5.0/El-Oeste-0.5.0-pruebas.apk).
+[Descargar APK de pruebas 0.6.0 para la tablet](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/download/v0.6.0/El-Oeste-0.6.0-pruebas.apk).
 
-1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.5.0 encima de la existente, conservando sus datos. No se requiere una computadora para generar certificados.
+1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.6.0 encima de la existente, conservando sus datos. No se requiere una computadora para generar certificados.
 2. Abrir **El Oeste · Servidor**, crear el usuario administrador y su PIN. La app prepara automáticamente una CA y un certificado únicos para esa instalación. Las claves privadas se generan dentro de AndroidKeyStore y no se exportan ni vienen compartidas dentro de la APK.
 3. Cuando indique **Activo**, pulsar **Conectar un celular**. Con el celular en el mismo Wi-Fi, escanear el QR, descargar `El-Oeste-CA.cer` y seguir la guía de autorización del teléfono. La pantalla de la tablet muestra la huella SHA-256 para comprobar que se instala su certificado correcto.
 4. Abrir la dirección `https://IP-DE-LA-TABLET:8443`, entrar con usuario/PIN y agregarla a la pantalla de inicio. Autorizar la cámara al usarla. No omitir advertencias TLS.

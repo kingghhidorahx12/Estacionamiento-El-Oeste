@@ -11,7 +11,11 @@ public final class Api {
         public int status=200; public JSONObject json; public String cookie;
         Reply(JSONObject json) { this.json=json; }
     }
-    public interface Application { JSONObject status(); JSONObject prepareUpdate(); }
+    public interface Application {
+        JSONObject status(); JSONObject prepareUpdate();
+        default JSONObject peripherals(){return new JSONObject().put("supported",false).put("message","Configura la impresora en la tablet Android.");}
+        default JSONObject peripheralAction(String action,JSONObject body){throw new IllegalArgumentException("La impresión térmica requiere la tablet Android.");}
+    }
     private final Db db; private final LongSupplier clock; private final Application application;
     private final java.util.concurrent.ConcurrentHashMap<String,Long> clients=new java.util.concurrent.ConcurrentHashMap<>();
     private volatile long backupAt=0;
@@ -72,12 +76,12 @@ public final class Api {
         String salt=Security.random(); db.exec("INSERT INTO users(id,name,salt,hash,role,display_name) VALUES(?,?,?,?,?,?)",UUID.randomUUID().toString(),name,salt,Security.password(password,salt),role,displayName);
     }
     public synchronized Reply handle(String method,String path,JSONObject body,String token,String csrf,String requestKey) {
-        return handleRequest(method,path,body,token,csrf,requestKey,false,true,"");
+        return handleRequest(method,path,body,token,csrf,requestKey,"");
     }
     public synchronized Reply handle(String method,String path,JSONObject body,String token,String csrf,String requestKey,boolean interactive,String clientId) {
-        return handleRequest(method,path,body,token,csrf,requestKey,true,interactive,clientId);
+        return handleRequest(method,path,body,token,csrf,requestKey,clientId);
     }
-    private Reply handleRequest(String method,String path,JSONObject body,String token,String csrf,String requestKey,boolean enforceIdle,boolean interactive,String clientId) {
+    private Reply handleRequest(String method,String path,JSONObject body,String token,String csrf,String requestKey,String clientId) {
         try {
             if(path.equals("/api/login") && method.equals("POST")) return login(body);
             JSONObject user=db.one("SELECT u.id,u.name,u.display_name,u.role,s.csrf,s.last_active FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>? AND u.active=1",Security.hash(token),now());
@@ -88,10 +92,6 @@ public final class Api {
                 Rules.require(body.optString("name").trim().equalsIgnoreCase(user.getString("name")),"Desbloquea con el mismo usuario.");
                 Reply result=login(body); if(result.status==200) db.exec("DELETE FROM sessions WHERE token=?",Security.hash(token)); return result;
             }
-            if(enforceIdle&&now()-user.getLong("last_active")>=accessPolicy().getInt(isAdmin(user)?"adminMinutes":"employeeMinutes")*60000L) {
-                Reply locked=error(423,"Acceso bloqueado por inactividad. Confirma tu PIN para continuar.");locked.json.put("locked",true).put("login",user.getString("name")).put("name",user.getString("display_name"));return locked;
-            }
-            if(enforceIdle&&interactive) db.exec("UPDATE sessions SET last_active=? WHERE token=?",now(),Security.hash(token));
             if(clientId!=null&&clientId.matches("[a-zA-Z0-9_-]{16,100}")) { clients.entrySet().removeIf(e->now()-e.getValue()>180000);if(clients.size()<100||clients.containsKey(clientId))clients.put(clientId,now()); }
             if(method.equals("GET")) return new Reply(read(path,user));
             Rules.require(method.equals("POST"),"Método no admitido.");
@@ -148,6 +148,7 @@ public final class Api {
         Reply r=new Reply(new JSONObject().put("csrf",csrf).put("name",u.getString("display_name")).put("role",u.getString("role"))); r.cookie=token; return r;
     }
     private JSONObject read(String path,JSONObject user) {
+        if(path.equals("/api/peripherals")){admin(user);return application==null?new JSONObject().put("supported",false).put("message","Configura la impresora en la tablet Android."):application.peripherals();}
         if(path.equals("/api/application")) { admin(user);return application==null?new JSONObject().put("supported",false).put("message","La actualización se prepara en la tablet Android."):application.status(); }
         if(path.equals("/api/state")) {
             JSONArray stays=db.query("SELECT s.*,c.state AS card_state FROM stays s JOIN cards c ON c.id=s.card_id WHERE s.state='active' ORDER BY s.entered DESC");
@@ -156,7 +157,7 @@ public final class Api {
                 .put("config",config()).put("version",configRow().getInt("version")).put("cards",db.query("SELECT id,state FROM cards ORDER BY id")).put("stays",stays);
             r.put("monthly",db.query("SELECT m.*,CASE WHEN p.id IS NULL THEN 0 ELSE 1 END AS paid FROM monthly m LEFT JOIN payments p ON p.monthly_id=m.id WHERE m.end_at>=? ORDER BY m.created DESC LIMIT 500",isAdmin(user)?0:now()));
             r.put("report",report(today(),user.getString("role").equals("admin")?null:user.getString("name")));
-            if(isAdmin(user)) r.put("accessPolicy",accessPolicy()).put("users",db.query("SELECT id,name,display_name,role,active FROM users ORDER BY name"))
+            if(isAdmin(user)) r.put("users",db.query("SELECT id,name,display_name,role,active FROM users ORDER BY name"))
                 .put("sync",new JSONObject().put("pending",db.one("SELECT COUNT(*) AS n FROM outbox WHERE confirmed=0").getInt("n")).put("last",meta("lastSync")));
             return r;
         }
@@ -175,6 +176,14 @@ public final class Api {
     }
     private JSONObject write(String path,JSONObject b,JSONObject u) {
         String actor=u.getString("name");
+        if(path.equals("/api/peripheral-action")){admin(u);Rules.require(application!=null,"Configura la impresora en la tablet Android.");String action=b.getString("action");Rules.require(Arrays.asList("save","probe","test").contains(action),"Acción de periférico inválida.");JSONObject payload=action.equals("save")?PrinterProfile.validate(b.getJSONObject("profile")):new JSONObject();JSONObject result=application.peripheralAction(action,payload);audit(actor,"printer_"+action,"printer",new JSONObject());return result;}
+        if(path.equals("/api/print-receipt")){
+            Rules.require(application!=null,"La impresión requiere la tablet Android.");JSONObject payment=db.one("SELECT * FROM payments WHERE id=?",b.getString("id"));
+            Rules.require(payment!=null&&(isAdmin(u)||payment.getString("actor").equals(actor)),"No puedes imprimir ese comprobante.");
+            JSONObject owner=db.one("SELECT display_name FROM users WHERE name=?",payment.getString("actor"));
+            JSONObject receipt=new JSONObject().put("id",payment.getString("id")).put("paid",payment.getLong("paid")).put("actor",owner==null?payment.getString("actor"):owner.getString("display_name")).put("total",payment.getLong("total")).put("lines",new JSONArray(payment.getString("lines")));
+            JSONObject result=application.peripheralAction("receipt",receipt);audit(actor,"receipt_requested",payment.getString("id"),new JSONObject());return result;
+        }
         if(path.equals("/api/backup")) {
             admin(u);
             try { JSONObject backup=Backups.export(db,b.getString("password"),now());backupAt=now();db.exec("INSERT OR REPLACE INTO meta VALUES('lastBackup',?)",String.valueOf(backupAt));audit(actor,"backup_export","local",new JSONObject().put("encrypted",true));return new JSONObject().put("backup",backup); } catch(IllegalArgumentException e) { throw e; } catch(Exception e) { throw new IllegalArgumentException("No se pudo crear el respaldo cifrado."); }
@@ -281,7 +290,6 @@ public final class Api {
             db.exec("INSERT INTO settings VALUES(?,?,?,?)",version,c.toString(),now(),actor); audit(actor,"config",String.valueOf(version),new JSONObject().put("reason",why)); return new JSONObject().put("version",version);
         }
         if(path.equals("/api/application-update")) {admin(u);Rules.require(application!=null,"La actualización se prepara en la tablet Android.");JSONObject result=application.prepareUpdate();audit(actor,"update_requested","application",new JSONObject());return result;}
-        if(path.equals("/api/access-policy")) {admin(u);int a=b.getInt("adminMinutes"),e=b.getInt("employeeMinutes");Rules.require(a>=1&&a<=120&&e>=1&&e<=120,"Inactividad: de 1 a 120 minutos.");JSONObject policy=new JSONObject().put("adminMinutes",a).put("employeeMinutes",e).put("proposedDefaults",false);db.exec("INSERT OR REPLACE INTO meta VALUES('accessPolicy',?)",policy.toString());audit(actor,"access_policy","web",policy);return policy;}
         if(path.equals("/api/users")) { admin(u); createUser(b.getString("name"),b.getString("password"),b.getString("role")); audit(actor,"user_created",b.getString("name"),new JSONObject().put("role",b.getString("role"))); return new JSONObject().put("ok",true); }
         if(path.equals("/api/user-update")) {
             admin(u); JSONObject target=db.one("SELECT * FROM users WHERE id=?",b.getString("id")); Rules.require(target!=null,"Usuario desconocido."); String role=b.getString("role"); Rules.require(role.equals("admin")||role.equals("employee"),"Rol inválido."); boolean enabled=b.getBoolean("active");
@@ -352,7 +360,6 @@ public final class Api {
     private Map<String,String> params(String path) { Map<String,String> result=new HashMap<>(); for(String part:path.substring(path.indexOf('?')+1).split("&")) { String[] pair=part.split("=",2); if(pair.length==2) result.put(pair[0],pair[1]); } Rules.require(result.containsKey("from")&&result.containsKey("to"),"Indica inicio y fin del periodo."); return result; }
     public synchronized void confirmEvents(long seq) { db.exec("UPDATE outbox SET confirmed=1 WHERE seq<=?",seq); db.exec("INSERT OR REPLACE INTO meta VALUES('lastSync',?)",String.valueOf(now())); }
     public synchronized String meta(String id) { JSONObject row=db.one("SELECT value FROM meta WHERE id=?",id); return row==null?"":row.getString("value"); }
-    public synchronized JSONObject accessPolicy() {String saved=meta("accessPolicy");return saved.isEmpty()?new JSONObject().put("adminMinutes",5).put("employeeMinutes",15).put("proposedDefaults",true):new JSONObject(saved);}
     public int recentConnections() {long at=now();return (int)clients.values().stream().filter(t->at-t<=180000).count();}
     public long lastBackup() {return backupAt;}
     public synchronized JSONObject occupancySnapshot() { JSONObject daily=report(today(),null); return new JSONObject().put("installation",meta("installation")).put("at",now()).put("occupancy",db.one("SELECT COUNT(*) AS n FROM stays WHERE state='active'").getInt("n")).put("entries",daily.getInt("entries")).put("exits",daily.getInt("exits")); }
