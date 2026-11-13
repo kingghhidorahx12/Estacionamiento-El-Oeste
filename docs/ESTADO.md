@@ -106,3 +106,5 @@ Verificaciones ejecutadas: 4 pruebas JDK de conexión real y detección de fallo
 No ejecutado: el emulador sin aceleración no consiguió arrancar Android; la suite nativa y la migración real siguen pendientes. No hay dispositivo físico conectado por ADB y la conexión de diagnóstico desde esta computadora al servidor mostrado en el video agotó su tiempo de espera. **No se presenta la causa del video como confirmada por logs del dispositivo ni la corrección como comprobada físicamente.** La prueba interna incluida en la APK verificará el proveedor de la tablet al activarla.
 
 Entrega: `artifacts/El-Oeste-0.3.1-pruebas.apk`, 16,775,833 bytes; SHA-256 `5484dd325b455cba421d849dd1e34488d80be1eebef22bd0a25cee860cbe3335`. Firma de actualización conservada: certificado SHA-256 `ae45ebb586679900420c15199a3d51fcdb8dd8686d2bfe844d8bc031687de325`. Artefactos privados fuera de Git.
+
+Commit de implementación 0.3.1: `73be4bbadeab09553d06d956761c2975f52e32dc` (11 archivos revisados).
