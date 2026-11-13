@@ -54,7 +54,7 @@ public final class MainActivity extends Activity {
         layout=new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);layout.setPadding(dp(18),dp(14),dp(18),dp(18));layout.setBackground(surface(0xfffffefa,0xfff5f4e9));center.addView(layout,new LinearLayout.LayoutParams(Math.min(getResources().getDisplayMetrics().widthPixels-dp(40),dp(620)),-2));
         LinearLayout brand=new LinearLayout(this);brand.setGravity(Gravity.CENTER);brand.setPadding(0,dp(18),0,dp(8));ImageView mark=new ImageView(this);mark.setImageResource(getResources().getIdentifier("oeste_icon","drawable",getPackageName()));brand.addView(mark,new LinearLayout.LayoutParams(dp(52),dp(52)));
         TextView word=new TextView(this);word.setText("EL OESTE\nESTACIONAMIENTO");word.setGravity(Gravity.CENTER);word.setTextColor(0xff102d48);word.setTextSize(19);word.setTypeface(Typeface.createFromAsset(getAssets(),"assets/fonts/Rye-Regular.ttf"));word.setPadding(dp(14),0,0,0);brand.addView(word);layout.addView(brand);
-        layout.addView(new PatioScene(this),new LinearLayout.LayoutParams(-1,dp(76)));
+        ImageView patio=new ImageView(this);patio.setScaleType(ImageView.ScaleType.FIT_CENTER);patio.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);try(InputStream art=getAssets().open("assets/oeste-patio-pintado.png")){patio.setImageBitmap(BitmapFactory.decodeStream(art));}catch(IOException ignored){}layout.addView(patio,new LinearLayout.LayoutParams(-1,dp(96)));
         getWindow().setStatusBarColor(0xff234e4d);getWindow().setNavigationBarColor(0xff234e4d);setContentView(scroll);
     }
     private void show(){

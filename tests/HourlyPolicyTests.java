@@ -10,7 +10,7 @@ public final class HourlyPolicyTests {
         long[][] cases={{0,1000},{1,1000},{599999,1000},{600000,1000},{600001,1500},{3599999,1500},{3600000,1500},{3600001,2500},{4199999,2500},{4200000,2500},{4200001,3000},{7200000,3000},{7200001,4000},{7800000,4000},{7800001,4500},{10800000,4500}};
         for(long[] c:cases)ok(Rules.hourly(c[0],false,rates)==c[1],"normal boundary at "+c[0]);
         ok(Rules.hourly(600000,true,rates)==1000&&Rules.hourly(3600000,true,rates)==1000,"preferred hour remains ten pesos");
-        ok(Rules.hourly(3600001,true,rates)==1500,"existing preferred partial remains unchanged");
+        ok(Rules.hourly(3600001,true,rates)==2000,"preferred starts a new flat hour without partial pricing");
         JSONObject legacy=new JSONObject(rates.toString());legacy.remove("normalFromStart");legacy.remove("normalPartial");
         ok(Rules.hourly(1,false,legacy)==1500&&Rules.hourly(3600001,false,legacy)==2000,"old snapshots preserve their agreed tariff");
         try{Rules.validateConfig(new JSONObject(rates.toString()).put("normalPartial",1600));throw new AssertionError("fraction above full hour");}catch(IllegalArgumentException expected){ok(true,"invalid fraction rejected");}

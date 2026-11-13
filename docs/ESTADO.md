@@ -242,3 +242,34 @@ APK final: **10,878,925 bytes**, SHA-256 `9512f3f01a27918e07105b96da6665b989d650
 Commit de implementación `0a56900f64f59584966b9d254be2ea5fb04ef68c`, publicado en main, con lista exacta de 39 archivos revisada (código, pruebas y recursos públicos). [Prerrelease oficial 0.7.0](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/tag/v0.7.0) publicado después de cotejar digest y tamaño de sus assets. Descarga pública sin sesión completada y cotejada byte a byte por SHA-256/tamaño, validando TLS y redirección HTTPS autorizada hacia release-assets.githubusercontent.com. Sólo después se actualiza `updates/latest.json` a versionCode 8. Instalar encima en la tablet y recargar el cliente local; no desinstalar, borrar datos ni reinstalar la CA. La instalación sigue requiriendo confirmación de Android. Servidores de ensayo cerrados; no se tocó la instalación real.
 
 Cierre del canal: comprobada sin sesión la URL exacta `UpdateManifest.SOURCE`; respuesta idéntica a `updates/latest.json`, versión 0.7.0, versionCode 8 y SHA-256 final. Commit del canal `0562540fed9002dcd96bf4f96db544799503f44d` cotejado con main remoto; árbol de trabajo limpio antes de registrar esta evidencia. La revisión automática de permisos interrumpió un primer intento por límite de uso; se retomó después y la comprobación pasó. No se repitieron pruebas de código sin cambios.
+
+
+## Cliente preferencial, tarjeta e ilustración · 0.8.0 · 13/11/2026
+
+Corrección expresa del propietario, con prioridad sobre $60 y sobre la fracción preferencial de versiones anteriores: **Cliente preferencial = $10 por hora iniciada sin fracciones y $40 por tiempo libre**; normal permanece independiente. Casilla renombrada y ayuda limitada a la tarifa seleccionada. No se muestran fracciones/tolerancia en operación, tarjeta ni configuración. Las claves históricas se conservan para instantáneas y respaldos. Migración versionada/atómica `preferredFullHour` para entradas futuras y restauraciones antiguas, sin cambiar QR, pagos ni estancias abiertas. Sin nuevas reglas de jornada, pensiones o recargos.
+
+Tarjeta HTML/PDF: únicamente normales; retirada la línea de jornada y la explicación del cálculo horario. «Lavados desde $120» seguido de «+$30 con estacionamiento tiempo libre», ambos desde configuración. El tiempo libre normal $50 permanece separado; el complemento de lavado sigue siendo otra modalidad y conserva la cobertura configurada. QR, tamaño bancario, margen blanco y cinco hojas Carta sin cambios.
+
+Ilustración raster generada con **image_gen integrada**, sustituye SVG y Canvas de carritos/fachada. PNG transparente RGBA de 1774 × 887 píxeles, `web/assets/oeste-patio-pintado.png`; SHA-256 `491313987fe8987746c444518ebab882b1bb051c7b3dc474dacb2bcc962e1470`. Misma imagen en acceso/estado vacío web y cabecera Android, sin colocarla detrás de cobros. Se conserva la marca EO existente. Prompt exacto en evidencia privada `artifacts/Prompt-ilustracion-0.8.txt`. No se retocó la imagen mediante código ni se copió identidad de El Muelle.
+
+Captura: ya conserva cofre, emblema y placa, con encuadre 4:3 consistente con el recorte. Prepara placa, propone color sólo si coinciden dos áreas de pintura y puede leer un nombre de marca escrito. Aplica los datos editables al formulario; conserva el servicio, cliente preferencial, tipo y observaciones. No registra entrada ni dinero al fotografiar. «Tomar foto» espera al inicio de cámara; el estado informa cuando el lector ya está preparado. Fotos/canvas y procesamiento sólo en RAM del teléfono; sin fotos a servidor, terceros, almacenamiento o Cloudflare.
+
+**Solicitud pendiente: reconocimiento general de símbolos de marca.** La comparación de geometría con referencias se descartó al no distinguir con seguridad dos fotografías públicas de emblemas reales. No se distribuyen ese prototipo, sus referencias ni la biblioteca examinada. Leer un nombre escrito no equivale a reconocer el símbolo de Toyota/Honda; esa limitación aparece en la captura y README. Hace falta un modelo visual local validado y pruebas representativas. El muestreo de color es una sugerencia dependiente de encuadre/luz y requiere revisión. No se afirma reconocimiento completo, precisión física ni funcionamiento instantáneo.
+
+Validación ejecutada para los cambios:
+
+| Ámbito | Resultado |
+|---|---|
+| Java afectado | **349** comprobaciones aprobadas: 148 negocio, 42 requisitos, 11 persistencia, 33 normal/versionado, 40 cliente preferencial, 17 usuarios, 32 experiencia y 26 impresora simulada. Incluye bordes de hora, ambos lados del intervalo automático normal, precio fijo de tiempo libre, cambio, idempotencia, informe único, migración y restauración |
+| JavaScript afectado | **18** pruebas aprobadas: 7 lector, 3 solicitudes, 2 caché, 3 muestreo/marca escrita y 3 PDF. Se rechazan nombres ambiguos/prefijos de placa, regiones de color discordantes/blancas saturadas y entrada insuficiente |
+| HTTP | **17** comprobaciones aprobadas en base aislada `.dev/preview-v8`, nunca en la instalación real |
+| PDF | Muestra sintética de cinco páginas Carta; primera tarjeta renderizada con Poppler y revisada. Texto nuevo sin tolerancia, jornada ni preferenciales; sin recorte ni solapamiento |
+| Android | APK 0.8.0, code 9, compilada con JDK 21/SDK 35, firma v3 conservada y recursos/DEX cotejados con fuente final. No ejecutada en dispositivo. Instrumentación previa sin cambios; no se repitieron suites de TLS/canal/réplica sin cambios |
+
+No se modificaron El Muelle, sus archivos, datos, CA, firma, permisos o USB. Pruebas físicas de cámara/colores, emblemas, HONOR/iPhone, impresora/báscula y Play Protect pendientes. Réplica de consulta sin despliegue nuevo.
+
+APK final: **13,529,115 bytes**, SHA-256 `86e7e75f08c85b75efea3ba3d2043aebf92fcb82605c4e2da2de19b5516410e3`. Firma de actualización `ae45ebb586679900420c15199a3d51fcdb8dd8686d2bfe844d8bc031687de325`.
+
++
++Navegador: cliente preferencial en tiempo libre muestra $40. Captura integrada ensayada con un adaptador de vídeo sintético servido exclusivamente por el proxy de desarrollo: imagen en RAM con placa ABC123A, pintura roja y palabra FORD. OCR real de Tesseract preparó los tres campos (ABC123A/Ford/Rojo); aplicar datos conservó `mode=free` y `preferred=true`, total base $40. Es una simulación de interfaz/procesamiento; no acredita cámara, pintura real ni reconocimiento de símbolos. El adaptador de cámara y los datos de ensayo no forman parte de web/ ni APK. Un error inicial de sintaxis de ese adaptador privado se corrigió y se comprobó su sintaxis antes del ensayo final; no era código del producto.
++

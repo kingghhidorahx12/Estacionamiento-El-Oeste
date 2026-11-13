@@ -33,9 +33,9 @@ if (-not (Test-Path .dev/signing/development.jks)) {
     & (Join-Path $JavaHome 'bin\keytool.exe') -genkeypair -keystore .dev/signing/development.jks -storepass android -keypass android -alias oeste-dev -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=El Oeste Development'
     if ($LASTEXITCODE -ne 0) { throw 'Falló la firma de desarrollo.' }
 }
-& (Join-Path $bt 'apksigner.bat') sign --ks .dev/signing/development.jks --ks-key-alias oeste-dev --ks-pass pass:android --key-pass pass:android --out artifacts/El-Oeste-0.7.0-pruebas.apk build/oeste-aligned.apk
+& (Join-Path $bt 'apksigner.bat') sign --ks .dev/signing/development.jks --ks-key-alias oeste-dev --ks-pass pass:android --key-pass pass:android --out artifacts/El-Oeste-0.8.0-pruebas.apk build/oeste-aligned.apk
 if ($LASTEXITCODE -ne 0) { throw 'Falló apksigner.' }
-& (Join-Path $bt 'apksigner.bat') verify --verbose artifacts/El-Oeste-0.7.0-pruebas.apk
+& (Join-Path $bt 'apksigner.bat') verify --verbose artifacts/El-Oeste-0.8.0-pruebas.apk
 if ($LASTEXITCODE -ne 0) { throw 'Firma inválida.' }
-Get-FileHash -Algorithm SHA256 artifacts/El-Oeste-0.7.0-pruebas.apk
+Get-FileHash -Algorithm SHA256 artifacts/El-Oeste-0.8.0-pruebas.apk
 Write-Output 'APK de pruebas. Clave de desarrollo: no distribuir como versión de producción.'

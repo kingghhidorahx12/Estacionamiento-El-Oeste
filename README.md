@@ -33,16 +33,17 @@ Toda la configuración está en **Resumen del negocio → Periféricos**. Requie
 
 Las pruebas con transportes simulados no acreditan compatibilidad física, corte, acentos o convivencia con El Muelle. La impresión física debe verificarse con la impresora real, sin cambiar sus permisos ni la báscula de El Muelle.
 
-Una fotografía se mantiene temporalmente en un canvas del teléfono. El OCR se ejecuta con recursos locales; propone una lectura editable de placa. Marca y color se confirman manualmente: no se simula un modelo que no existe. La cámara y el canvas se liberan al cerrar la foto. El lector se prepara al abrir el ingreso y se reutiliza mientras se trabaja en ese formulario; su memoria se libera al salir del ingreso, cerrar sesión u ocultar la página. La lectura comienza al tomar la foto, con un recorte central señalado en pantalla y resultado editable. El modelo ligero y las variantes LSTM/SIMD están incluidos en la aplicación; no se descarga nada de Internet durante la operación. Los recursos públicos del motor se conservan en caché, nunca las fotos. Una inicialización o lectura sin respuesta se interrumpe tras 25 segundos; permite reintentar o continuar manualmente. No se garantiza una lectura instantánea ni exacta en todo dispositivo. La aplicación no escribe fotografías ni las envía al servidor; el navegador o sistema operativo puede mantener memoria temporal fuera del control de la aplicación.
+La captura conserva el frente para preparar placa y color y leer la marca si su nombre está escrito con claridad. Los datos son editables y se aplican al formulario de entrada; el registro se confirma con la tarjeta y el vehículo, sin cobrar automáticamente. La guía señala cofre, emblema y placa. Las fotografías permanecen sólo en RAM del cliente y no se envían a la tablet ni a terceros. Cámara/canvas se liberan al cerrar; el lector se libera al salir del ingreso, cerrar sesión u ocultar la página. Los recursos públicos del lector son locales y reutilizables; nunca se guardan fotos en la caché.
+
+**Límite actual:** el reconocimiento general de emblemas gráficos todavía no está resuelto. La lectura puede identificar nombres escritos como Ford o Nissan; un símbolo sin nombre requiere elegir la marca. El color es una sugerencia de las dos áreas de pintura encuadradas y puede fallar por luz, reflejos o mala alineación. No equivale a un modelo entrenado para reconocer todos los vehículos. No se presenta como identificación completa ni como validación física.
 
 ## Tarifas iniciales
 
 | Modalidad | MXN |
 |---|---:|
-| Normal: primeros diez minutos de cada hora iniciada | $10 |
-| Normal: después de diez minutos y hasta completar esa hora | $15 por esa hora |
-| Preferencial | $10 por hora; conserva la fracción previa de $5 en los primeros diez minutos después de una hora completa |
-| Tiempo libre normal / preferencial | $50 / $60 |
+| Hora normal | $15 |
+| Cliente preferencial: hora iniciada, sin fracciones | $10 |
+| Tiempo libre normal / cliente preferencial | $50 / $40 |
 | Lavado de auto | $120 |
 | Lavado de camioneta / Van | $170 |
 | Lavado de pickup | $200 |
@@ -52,9 +53,9 @@ Una fotografía se mantiene temporalmente en un canvas del teléfono. El OCR se 
 | Temporal provisional de hasta 12 horas desde el ingreso | $100 |
 | Extravío de tarjeta | +$100 |
 
-Normal confirmado el 13/11/2026: hasta 10:00 min, $10; después y hasta 60:00, $15; de 60:00.001 a 70:00, $25; después y hasta 120:00, $30. Los cambios se aplican a nuevas entradas. Cada estancia ya abierta conserva su versión de tarifas; los pagos cerrados no se recalculan. La actualización migra la configuración anterior para futuros ingresos y conserva respaldos y QR.
+La casilla **Cliente preferencial** selecciona únicamente $10 por hora iniciada o $40 por tiempo libre. La tarifa normal se calcula automáticamente; no se ofrecen controles de fracciones ni tolerancia al empleado. Los cambios de configuración se aplican a nuevas entradas. Las estancias ya abiertas conservan su versión y los pagos cerrados no se recalculan.
 
-Tiempo libre y complemento de lavado son conceptos separados; durante su cobertura no se suma tarifa horaria. No se invierte la tarifa preferencial de tiempo libre. Lavado solo conserva su precio base; no hay tarifa confirmada de lavado para motos.
+Tiempo libre y complemento de lavado son conceptos separados; durante su cobertura no se suma tarifa horaria. El tiempo libre de cliente preferencial es de $40. Lavado solo conserva su precio base; no hay tarifa confirmada de lavado para motos.
 
 La jornada **no equivale automáticamente a 24 horas**. Apertura/cierre e inicio/fin nocturno comienzan sin definir. Un administrador puede configurarlos explícitamente. Fuera de cobertura o sin horario confirmado se exige resolución administrativa justificada; no se inventan excedentes. Las mensualidades usan fechas de inicio y vencimiento explícitas, pago pendiente o confirmado, y no se renuevan automáticamente. Una pensión pagada registra cada visita y su ocupación sin crear otro ingreso por la misma mensualidad.
 
@@ -82,9 +83,9 @@ La compilación genera una APK **de pruebas**, con clave de desarrollo local exc
 
 ## Instalación en HONOR Pad 8
 
-[Descargar APK de pruebas 0.7.0 para la tablet](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/download/v0.7.0/El-Oeste-0.7.0-pruebas.apk).
+[Descargar APK de pruebas 0.8.0 para la tablet](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/download/v0.8.0/El-Oeste-0.8.0-pruebas.apk).
 
-1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.7.0 encima de la existente, conservando sus datos. No se requiere una computadora para generar certificados.
+1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.8.0 encima de la existente, conservando sus datos. No se requiere una computadora para generar certificados.
 2. Abrir **El Oeste · Servidor**, crear el usuario administrador y su PIN. La app prepara automáticamente una CA y un certificado únicos para esa instalación. Las claves privadas se generan dentro de AndroidKeyStore y no se exportan ni vienen compartidas dentro de la APK.
 3. Cuando indique **Activo**, pulsar **Conectar un celular**. Con el celular en el mismo Wi-Fi, escanear el QR, descargar `El-Oeste-CA.cer` y seguir la guía de autorización del teléfono. La pantalla de la tablet muestra la huella SHA-256 para comprobar que se instala su certificado correcto.
 4. Abrir la dirección `https://IP-DE-LA-TABLET:8443`, entrar con usuario/PIN y agregarla a la pantalla de inicio. Autorizar la cámara al usarla. No omitir advertencias TLS.

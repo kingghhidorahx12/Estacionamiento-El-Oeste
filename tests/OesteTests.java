@@ -24,7 +24,7 @@ public final class OesteTests {
     public static void main(String[] args) throws Exception {
         long[][] ordinary={{1000,1000},{3600000,1500},{3600001,2500},{4020000,2500},{4200000,2500},{4200001,3000},{4380000,3000},{6900000,3000},{7200000,3000},{7380000,4000},{7800000,4000},{7800001,4500},{9000000,4500},{10800000,4500}};
         for(long[] c:ordinary) eq(Rules.hourly(c[0],false,config),c[1],"hourly "+c[0]);
-        long[][] pref={{3600000,1000},{4020000,1500},{4380000,2000},{7380000,2500},{9000000,3000}}; for(long[] c:pref) eq(Rules.hourly(c[0],true,config),c[1],"preferred");
+        long[][] pref={{3600000,1000},{4020000,2000},{4380000,2000},{7380000,3000},{9000000,3000}}; for(long[] c:pref) eq(Rules.hourly(c[0],true,config),c[1],"preferred");
         long entered=ZonedDateTime.of(2026,11,12,8,0,0,0,ZoneId.of(Rules.ZONE)).toInstant().toEpochMilli();
         for(String type:new String[]{"auto","camioneta","van","pickup"}) {
             long base=config.getJSONObject("wash").getLong(type); JSONObject wash=stay("wash_only",type,entered); eq(Rules.quote(wash,entered+7200000).getLong("total"),base,"wash only "+type);

@@ -7,9 +7,9 @@ public final class Rules {
     private Rules() {}
     public static final String ZONE = "America/Mexico_City";
     public static JSONObject defaults() {
-        return new JSONObject("{\"ordinary\":1500,\"preferred\":1000,\"partial\":500,\"normalPartial\":1000,\"normalFromStart\":true,\"graceMinutes\":10,"
+        return new JSONObject("{\"ordinary\":1500,\"preferred\":1000,\"preferredFullHour\":true,\"partial\":500,\"normalPartial\":1000,\"normalFromStart\":true,\"graceMinutes\":10,"
             + "\"wash\":{\"auto\":12000,\"camioneta\":17000,\"van\":17000,\"pickup\":20000},"
-            + "\"dayAddon\":3000,\"freeNormal\":5000,\"freePreferred\":6000,\"opening\":null,\"closing\":null,"
+            + "\"dayAddon\":3000,\"freeNormal\":5000,\"freePreferred\":4000,\"opening\":null,\"closing\":null,"
             + "\"monthly\":[{\"id\":\"12h\",\"name\":\"Mensual 12 horas\",\"hours\":12,\"price\":50000},{\"id\":\"24h\",\"name\":\"Mensual 24 horas\",\"hours\":24,\"price\":60000}],"
             + "\"monthlyNightStart\":null,\"monthlyNightEnd\":null,\"monthlyPeriod\":null,"
             + "\"temporary\":{\"price\":10000,\"hours\":12,\"status\":\"provisional\"},\"lostCard\":10000}");
@@ -17,6 +17,7 @@ public final class Rules {
     public static long hourly(long elapsedMs, boolean preferred, JSONObject c) {
         require(elapsedMs >= 0, "La salida no puede preceder a la entrada.");
         long rate = c.getLong(preferred ? "preferred" : "ordinary");
+        if(preferred&&c.optBoolean("preferredFullHour"))return Math.max(1,(elapsedMs+3599999)/3600000)*rate;
         if(!preferred&&c.optBoolean("normalFromStart")) {
             long whole=elapsedMs/3600000,rem=elapsedMs%3600000,window=c.getLong("graceMinutes")*60000;
             if(elapsedMs==0) return window>0?c.getLong("normalPartial"):rate;

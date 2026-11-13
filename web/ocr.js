@@ -26,7 +26,7 @@ class LocalPlateReader {
    await this.job('load',{options:{lstmOnly:true,corePath:location.origin+'/vendor',logging:false}});
    await this.job('loadLanguage',{langs:'eng',options:{langPath:location.origin+'/vendor',cacheMethod:'none',gzip:true,lstmOnly:true}});
    await this.job('initialize',{langs:'eng',oem:1,config:{}});
-   await this.job('setParameters',{params:{tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',tessedit_pageseg_mode:'11'}});
+   await this.job('setParameters',{params:{tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789- ',tessedit_pageseg_mode:'11'}});
    return this;
   })().catch(error=>{if(this.ready===attempt)this.stop(error);throw error;});
   this.ready=attempt;return attempt;

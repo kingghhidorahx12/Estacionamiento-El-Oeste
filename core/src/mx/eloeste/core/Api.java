@@ -58,7 +58,7 @@ public final class Api {
             db.exec("INSERT INTO settings VALUES(?,?,?,?)",version,existing.toString(),now(),"system");
             audit("system","requirements_migration",String.valueOf(version),new JSONObject().put("note","Tiempo libre y modalidades mensuales confirmadas. Se conservan las tarifas de estancias anteriores y los contratos previos."));
         }
-        if(!config().has("normalFromStart")){db.begin();try{ensureHourlyPolicy();db.commit();}catch(Exception e){db.rollback();throw e;}}
+        if(!config().has("normalFromStart")||!config().has("preferredFullHour")){db.begin();try{ensureHourlyPolicy();ensurePreferredPolicy();db.commit();}catch(Exception e){db.rollback();throw e;}}
         String backup=meta("lastBackup");if(!backup.isEmpty())try{backupAt=Long.parseLong(backup);}catch(NumberFormatException ignored){}
     }
     private void ensureHourlyPolicy(){
@@ -66,6 +66,12 @@ public final class Api {
         current.put("ordinary",1500).put("preferred",1000).put("graceMinutes",10).put("normalPartial",1000).put("normalFromStart",true);
         int version=configRow().getInt("version")+1;db.exec("INSERT INTO settings VALUES(?,?,?,?)",version,current.toString(),now(),"system");
         audit("system","hourly_policy_corrected",String.valueOf(version),new JSONObject().put("note","Regla normal confirmada: primeros 10 minutos de cada hora $10; después $15. Nuevas entradas; se conservan snapshots anteriores y pagos."));
+    }
+    private void ensurePreferredPolicy(){
+        JSONObject current=config();if(current.has("preferredFullHour"))return;
+        current.put("preferred",1000).put("freePreferred",4000).put("preferredFullHour",true);
+        int version=configRow().getInt("version")+1;db.exec("INSERT INTO settings VALUES(?,?,?,?)",version,current.toString(),now(),"system");
+        audit("system","preferred_policy_corrected",String.valueOf(version),new JSONObject().put("note","Cliente preferencial: hora $10 sin fracciones; tiempo libre $40. Nuevas entradas; pagos y tarifas anteriores conservados."));
     }
     public synchronized boolean needsSetup() { return db.one("SELECT id FROM users LIMIT 1")==null; }
     /** Only called from the desktop console or tablet's protected native setup. No public setup endpoint. */
@@ -198,7 +204,7 @@ public final class Api {
         if(path.equals("/api/restore")) {
             admin(u); Rules.require(b.optString("confirmation").equals("RESTAURAR"),"Escribe RESTAURAR para confirmar la sustitución de datos locales."); JSONObject current=db.one("SELECT salt,hash FROM users WHERE id=?",u.getString("id")); Rules.require(Security.equal(Security.password(b.getString("pin"),current.getString("salt")),current.getString("hash")),"PIN de administrador incorrecto.");
             try { Backups.restore(db,b.getJSONObject("backup"),b.getString("password")); } catch(IllegalArgumentException e) { throw e; } catch(Exception e) { throw new IllegalArgumentException("El respaldo es incompatible o está dañado. No se restauró ningún dato."); }
-            ensureHourlyPolicy();audit(actor,"backup_restored","local",new JSONObject().put("sessionsRevoked",true)); return new JSONObject().put("ok",true).put("loginRequired",true);
+            ensureHourlyPolicy();ensurePreferredPolicy();audit(actor,"backup_restored","local",new JSONObject().put("sessionsRevoked",true)); return new JSONObject().put("ok",true).put("loginRequired",true);
         }
         if(path.equals("/api/entry")) {
             Rules.require(db.one("SELECT COUNT(*) AS n FROM stays WHERE state='active'").getInt("n")<30,"Capacidad máxima: 30 vehículos.");
