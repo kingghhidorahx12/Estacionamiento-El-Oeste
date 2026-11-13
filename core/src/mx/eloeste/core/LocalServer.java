@@ -61,7 +61,7 @@ public final class LocalServer implements Closeable {
                 byte[] raw=new byte[length]; int offset=0; while(offset<length) { int n=in.read(raw,offset,length-offset); if(n<0) throw new EOFException(); offset+=n; }
                 JSONObject body=new JSONObject(); if(length>0) try { body=new JSONObject(new String(raw,StandardCharsets.UTF_8)); } catch(JSONException ex) { send(out,400,"application/json","{\"error\":\"JSON inválido.\"}".getBytes(StandardCharsets.UTF_8),null); return; }
                 String token=""; for(String cookie:h.getOrDefault("cookie","").split(";")) if(cookie.trim().startsWith("oeste=")) token=cookie.trim().substring(6);
-                Api.Reply reply=api.handle(method,path,body,token,h.getOrDefault("x-csrf",""),h.getOrDefault("idempotency-key",""));
+                Api.Reply reply=api.handle(method,path,body,token,h.getOrDefault("x-csrf",""),h.getOrDefault("idempotency-key",""),h.getOrDefault("x-activity","").equals("1"),h.getOrDefault("x-client",""));
                 String cookie=reply.cookie==null?null:"oeste="+reply.cookie+"; Path=/; HttpOnly; SameSite=Strict; Max-Age="+(reply.cookie.isEmpty()?"0":"43200")+(secure?"; Secure":"");
                 send(out,reply.status,"application/json; charset=utf-8",reply.json.toString().getBytes(StandardCharsets.UTF_8),cookie); return;
             }

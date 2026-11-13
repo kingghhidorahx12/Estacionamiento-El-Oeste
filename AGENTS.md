@@ -14,3 +14,10 @@ Continúa el código existente. Fuente consolidada del propietario: 12/11/2026; 
 - Declarar por separado navegador, simulaciones, compilación y pruebas físicas. No afirmar compatibilidad física con HONOR/iPhone ni convivencia con la báscula sin evidencia real.
 
 No repetir pruebas de fuentes sin cambios ni crear documentación duplicada. Actualiza `docs/ESTADO.md` con resultados, huellas y commits reales.
+
+- UX vigente: administrador abre resumen real; empleado escanea una tarjeta y el servidor decide entrada/salida sin registrar dinero automáticamente. Cancelar registros activos exige administrador y motivo, conserva auditoría y nunca borra pagos cerrados.
+- Marca vigente: fachada comercial simplificada EO, rótulo Rye y controles Manrope. Fondos operativos opacos claros, texto oscuro, formularios de 16 px y objetivos táctiles de al menos 48 px. No restaurar el símbolo de atardecer ni poner imágenes detrás de cobros.
+- Marca/color son listas reales con «Otro» condicional. Mantener carga de datos previos y pensiones. No deducir marca, color, tarifa o condiciones comerciales sin evidencia.
+- Imprimir 35 QR en Carta, 8 por hoja / 5 hojas, tarjetas de 85.60 × 53.98 mm: QR vectorial en la mitad izquierda y datos centrados a la derecha. Precios salen de la configuración, cuatro módulos blancos alrededor del QR. Nunca publicar PDF con códigos operativos.
+- Usuarios: identificador normalizado separado de nombre visible; conservar mayúsculas. Inactividad web propuesta 5/15 min, mantenimiento nativo 5 min, todos configurables; no confundir estos bloqueos con detener el servicio o bloquear Android.
+- Servicio Android: una instancia de Api; sincronización de Internet separada de comprobación y recuperación LAN. No cambiar permisos, batería ni USB de El Muelle.

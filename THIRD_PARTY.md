@@ -5,6 +5,8 @@ Los recursos web se sirven desde la tablet, sin CDN en tiempo de operación.
 | Recurso | Uso y licencia | Procedencia |
 |---|---|---|
 | Manrope regular / semibold | Tipografía, SIL Open Font License 1.1. Aviso completo en `web/assets/fonts/OFL.txt`. | https://github.com/sharanda/manrope |
+| Rye | Marca y rótulos comerciales, SIL Open Font License 1.1; `web/assets/fonts/Rye-OFL.txt`. | https://github.com/google/fonts/tree/main/ofl/rye |
+| pdf-lib 1.17.1 | PDF carta generado localmente, MIT; aviso en `web/vendor/pdf-lib.LICENSE.md`. SHA-256 del JS: `0f9a5cad07941f0826586c94e089d89b918c46e5c17cf2d5a3c6f666e3bc694f`. | https://github.com/Hopding/pdf-lib |
 | jsQR 1.4.0 | Lectura QR local, Apache-2.0. | https://github.com/cozmo/jsQR |
 | qrcode-generator 1.4.4 | Generación vectorial de tarjetas, MIT. | https://github.com/kazuhikoarase/qrcode-generator |
 | Tesseract.js y core 5.1.1 | OCR local, Apache-2.0. | https://github.com/naptha/tesseract.js |
@@ -15,4 +17,4 @@ Los recursos web se sirven desde la tablet, sin CDN en tiempo de operación.
 
 Los scripts fijan versiones. Los avisos de los archivos originales se conservan; no se ha copiado identidad ni ilustraciones comerciales de El Muelle. Los archivos descargados deben acompañarse de los avisos de licencia en `web/vendor/licenses/` al redistribuir.
 
-La ilustración `web/assets/oeste-panorama.png` (también usada en la réplica) fue generada para este proyecto el 12/11/2026 mediante la habilidad ImageGen, modo de generación nuevo sin imágenes de referencia. El prompt pidió un patio de estacionamiento mexicano al poniente, luz dorada, cielo azul, cuatro vehículos y espacio tranquilo para la interfaz; excluyó texto, elementos marinos e identidad de El Muelle. Es una ilustración conceptual y no una fotografía del establecimiento. El símbolo vectorial propio representa sol, horizonte y flecha hacia el oeste.
+La marca vigente es una fachada comercial simplificada con letras EO y rótulo Rye. Se compone con geometría y contornos tipográficos propios del proyecto mediante `scripts/BrandAssets.java`; no copia la marca de El Muelle. Inspiración: fachadas comerciales descritas por el [National Park Service](https://www.nps.gov/klgo/learn/historyculture/boas.htm) y rótulos de madera del siglo XIX documentados por [Smithsonian](https://americanhistory.si.edu/collections/archival-item/sova-nmah-ac-0060-s01-01-lumber-ref70). La ilustración conceptual anterior `oeste-panorama.png` se conserva como recurso histórico, sin colocarse detrás de información operativa.

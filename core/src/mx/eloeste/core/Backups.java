@@ -33,7 +33,9 @@ public final class Backups {
         for(String table:TABLES) { JSONArray rows=tables.getJSONArray(table); Rules.require(rows.length()<=200000,"Demasiados registros."); JSONArray schema=db.query("PRAGMA table_info("+table+")"); String[] columns=new String[schema.length()]; for(int j=0;j<columns.length;j++) columns[j]=schema.getJSONObject(j).getString("name");
             db.exec("DELETE FROM "+table);
             String placeholders=String.join(",",Collections.nCopies(columns.length,"?")); String sql="INSERT INTO "+table+" ("+String.join(",",columns)+") VALUES("+placeholders+")";
-            for(int i=0;i<rows.length();i++) { JSONObject row=rows.getJSONObject(i); Rules.require(row.length()==columns.length,"Columnas de respaldo incompatibles."); Object[] values=new Object[columns.length]; for(int j=0;j<columns.length;j++) { Rules.require(row.has(columns[j]),"Falta columna de respaldo."); Object value=row.get(columns[j]); Rules.require(value==JSONObject.NULL||value instanceof Number||value instanceof String,"Tipo de respaldo inválido."); values[j]=value==JSONObject.NULL?null:value; } db.exec(sql,values); }
+            for(int i=0;i<rows.length();i++) { JSONObject row=rows.getJSONObject(i);
+                if(table.equals("users")&&!row.has("display_name")) row.put("display_name",row.getString("name"));
+                Rules.require(row.length()==columns.length,"Columnas de respaldo incompatibles."); Object[] values=new Object[columns.length]; for(int j=0;j<columns.length;j++) { Rules.require(row.has(columns[j]),"Falta columna de respaldo."); Object value=row.get(columns[j]); Rules.require(value==JSONObject.NULL||value instanceof Number||value instanceof String,"Tipo de respaldo inválido."); values[j]=value==JSONObject.NULL?null:value; } db.exec(sql,values); }
         }
         Rules.require(db.one("SELECT COUNT(*) AS n FROM cards").getInt("n")==35,"El respaldo no contiene las 35 tarjetas.");
         Rules.require(db.one("SELECT COUNT(*) AS n FROM stays WHERE state='active'").getInt("n")<=30,"Ocupación inválida.");

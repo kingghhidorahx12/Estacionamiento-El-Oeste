@@ -13,6 +13,8 @@ public final class Api {
     }
     public interface Application { JSONObject status(); JSONObject prepareUpdate(); }
     private final Db db; private final LongSupplier clock; private final Application application;
+    private final java.util.concurrent.ConcurrentHashMap<String,Long> clients=new java.util.concurrent.ConcurrentHashMap<>();
+    private volatile long backupAt=0;
     public Api(Db db) { this(db,System::currentTimeMillis,null); }
     public Api(Db db, LongSupplier clock) { this(db,clock,null); }
     public Api(Db db, LongSupplier clock,Application application) { this.db=db; this.clock=clock; this.application=application; migrate(); }
@@ -32,6 +34,12 @@ public final class Api {
             "CREATE TABLE IF NOT EXISTS outbox(seq INTEGER PRIMARY KEY AUTOINCREMENT,event_id TEXT UNIQUE NOT NULL,body TEXT NOT NULL,confirmed INTEGER NOT NULL DEFAULT 0)",
             "CREATE TABLE IF NOT EXISTS meta(id TEXT PRIMARY KEY,value TEXT NOT NULL)"
         }) db.exec(sql);
+        boolean displayColumn=false; JSONArray columns=db.query("PRAGMA table_info(users)");
+        for(int i=0;i<columns.length();i++) if(columns.getJSONObject(i).getString("name").equals("display_name")) displayColumn=true;
+        if(!displayColumn) { db.exec("ALTER TABLE users ADD COLUMN display_name TEXT NOT NULL DEFAULT ''"); db.exec("UPDATE users SET display_name=name"); }
+        boolean activeColumn=false; columns=db.query("PRAGMA table_info(sessions)");
+        for(int i=0;i<columns.length();i++) if(columns.getJSONObject(i).getString("name").equals("last_active")) activeColumn=true;
+        if(!activeColumn) { db.exec("ALTER TABLE sessions ADD COLUMN last_active INTEGER NOT NULL DEFAULT 0"); db.exec("UPDATE sessions SET last_active=?",now()); }
         if (db.one("SELECT version FROM settings LIMIT 1")==null) db.exec("INSERT INTO settings VALUES(1,?,?,?)",Rules.defaults().toString(),now(),"system");
         if (db.one("SELECT id FROM meta WHERE id='installation'")==null) db.exec("INSERT INTO meta VALUES('installation',?)",Security.random());
         boolean needsEpoch=db.one("SELECT id FROM meta WHERE id='eventEpoch'")==null;
@@ -46,6 +54,7 @@ public final class Api {
             db.exec("INSERT INTO settings VALUES(?,?,?,?)",version,existing.toString(),now(),"system");
             audit("system","requirements_migration",String.valueOf(version),new JSONObject().put("note","Tiempo libre y modalidades mensuales confirmadas. Se conservan las tarifas de estancias anteriores y los contratos previos."));
         }
+        String backup=meta("lastBackup");if(!backup.isEmpty())try{backupAt=Long.parseLong(backup);}catch(NumberFormatException ignored){}
     }
     public synchronized boolean needsSetup() { return db.one("SELECT id FROM users LIMIT 1")==null; }
     /** Only called from the desktop console or tablet's protected native setup. No public setup endpoint. */
@@ -56,21 +65,40 @@ public final class Api {
     private JSONObject configRow() { return db.one("SELECT * FROM settings ORDER BY version DESC LIMIT 1"); }
     private JSONObject config() { return new JSONObject(configRow().getString("body")); }
     private void createUser(String name,String password,String role) {
+        String displayName=name.trim(); name=displayName.toLowerCase(Locale.ROOT);
         Rules.require(name.matches("[a-zA-Z0-9._-]{3,40}"),"Usuario: 3 a 40 letras, números, puntos o guiones."); Security.pin(password);
         Rules.require(role.equals("admin")||role.equals("employee"),"Rol inválido.");
         Rules.require(db.one("SELECT id FROM users WHERE name=?",name)==null,"El usuario ya existe.");
-        String salt=Security.random(); db.exec("INSERT INTO users(id,name,salt,hash,role) VALUES(?,?,?,?,?)",UUID.randomUUID().toString(),name,salt,Security.password(password,salt),role);
+        String salt=Security.random(); db.exec("INSERT INTO users(id,name,salt,hash,role,display_name) VALUES(?,?,?,?,?,?)",UUID.randomUUID().toString(),name,salt,Security.password(password,salt),role,displayName);
     }
     public synchronized Reply handle(String method,String path,JSONObject body,String token,String csrf,String requestKey) {
+        return handleRequest(method,path,body,token,csrf,requestKey,false,true,"");
+    }
+    public synchronized Reply handle(String method,String path,JSONObject body,String token,String csrf,String requestKey,boolean interactive,String clientId) {
+        return handleRequest(method,path,body,token,csrf,requestKey,true,interactive,clientId);
+    }
+    private Reply handleRequest(String method,String path,JSONObject body,String token,String csrf,String requestKey,boolean enforceIdle,boolean interactive,String clientId) {
         try {
             if(path.equals("/api/login") && method.equals("POST")) return login(body);
-            JSONObject user=db.one("SELECT u.id,u.name,u.role,s.csrf FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>? AND u.active=1",Security.hash(token),now());
+            JSONObject user=db.one("SELECT u.id,u.name,u.display_name,u.role,s.csrf,s.last_active FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>? AND u.active=1",Security.hash(token),now());
             if(user==null) return error(401,"Inicia sesión para continuar.");
             if(!method.equals("GET")) Rules.require(Security.equal(user.getString("csrf"),csrf),"Sesión inválida; vuelve a iniciar sesión.");
             if(path.equals("/api/logout") && method.equals("POST")) { db.exec("DELETE FROM sessions WHERE token=?",Security.hash(token)); Reply r=new Reply(new JSONObject().put("ok",true)); r.cookie=""; return r; }
+            if(path.equals("/api/unlock")&&method.equals("POST")) {
+                Rules.require(body.optString("name").trim().equalsIgnoreCase(user.getString("name")),"Desbloquea con el mismo usuario.");
+                Reply result=login(body); if(result.status==200) db.exec("DELETE FROM sessions WHERE token=?",Security.hash(token)); return result;
+            }
+            if(enforceIdle&&now()-user.getLong("last_active")>=accessPolicy().getInt(isAdmin(user)?"adminMinutes":"employeeMinutes")*60000L) {
+                Reply locked=error(423,"Acceso bloqueado por inactividad. Confirma tu PIN para continuar.");locked.json.put("locked",true).put("login",user.getString("name")).put("name",user.getString("display_name"));return locked;
+            }
+            if(enforceIdle&&interactive) db.exec("UPDATE sessions SET last_active=? WHERE token=?",now(),Security.hash(token));
+            if(clientId!=null&&clientId.matches("[a-zA-Z0-9_-]{16,100}")) { clients.entrySet().removeIf(e->now()-e.getValue()>180000);if(clients.size()<100||clients.containsKey(clientId))clients.put(clientId,now()); }
             if(method.equals("GET")) return new Reply(read(path,user));
             Rules.require(method.equals("POST"),"Método no admitido.");
+            // A scan is a fresh lookup, never a cached entry/exit command.
+            if(path.equals("/api/scan")) return new Reply(scan(body));
             Rules.require(requestKey.matches("[a-zA-Z0-9_-]{16,100}"),"Falta el identificador único de operación.");
+            if(path.equals("/api/cancel-wash")||path.equals("/api/cancel-entry")) user.put("authorizedBy",authorizeCancellation(user,body));
             String key=user.getString("id")+":"+requestKey;
             db.begin();
             try {
@@ -90,9 +118,9 @@ public final class Api {
         JSONObject metadata=new JSONObject(body.toString());metadata.remove(secret);return Security.hash(path+"\n"+metadata.toString());
     }
     private String requestFingerprint(String path,JSONObject body) {
-        String secret=path.equals("/api/users")?"password":path.equals("/api/user-update")&&!body.optString("pin").isEmpty()?"pin":null;
+        String secret=path.equals("/api/users")?"password":path.equals("/api/user-update")&&!body.optString("pin").isEmpty()?"pin":body.has("adminPin")?"adminPin":null;
         if(secret==null)return Security.hash(path+"\n"+body.toString());
-        JSONObject account=path.equals("/api/users")?db.one("SELECT salt,hash FROM users WHERE name=?",body.getString("name").trim().toLowerCase(Locale.ROOT)):db.one("SELECT salt,hash FROM users WHERE id=?",body.getString("id"));
+        JSONObject account=secret.equals("adminPin")?db.one("SELECT salt,hash FROM users WHERE name=?",body.optString("adminName").trim().toLowerCase(Locale.ROOT)):path.equals("/api/users")?db.one("SELECT salt,hash FROM users WHERE name=?",body.getString("name").trim().toLowerCase(Locale.ROOT)):db.one("SELECT salt,hash FROM users WHERE id=?",body.getString("id"));
         // Reuse the PIN verifier already derived by the write. Never store a fast PIN hash.
         return new JSONObject().put("v",2).put("metadata",metadataFingerprint(path,body,secret)).put("secret",secret).put("salt",account.getString("salt")).put("hash",account.getString("hash")).toString();
     }
@@ -116,19 +144,19 @@ public final class Api {
         if(!valid) { int count=fail!=null&&fail.getLong("until_at")>now()?fail.getInt("count")+1:1; db.exec("INSERT OR REPLACE INTO attempts VALUES(?,?,?)",name,count,now()+900000); return error(401,"Usuario o contraseña incorrectos."); }
         db.exec("DELETE FROM attempts WHERE name=?",name); db.exec("DELETE FROM sessions WHERE expires<=?",now());
         String token=Security.random(),csrf=Security.random();
-        db.exec("INSERT INTO sessions VALUES(?,?,?,?)",Security.hash(token),u.getString("id"),csrf,now()+43200000);
-        Reply r=new Reply(new JSONObject().put("csrf",csrf).put("name",u.getString("name")).put("role",u.getString("role"))); r.cookie=token; return r;
+        db.exec("INSERT INTO sessions(token,user_id,csrf,expires,last_active) VALUES(?,?,?,?,?)",Security.hash(token),u.getString("id"),csrf,now()+43200000,now());
+        Reply r=new Reply(new JSONObject().put("csrf",csrf).put("name",u.getString("display_name")).put("role",u.getString("role"))); r.cookie=token; return r;
     }
     private JSONObject read(String path,JSONObject user) {
         if(path.equals("/api/application")) { admin(user);return application==null?new JSONObject().put("supported",false).put("message","La actualización se prepara en la tablet Android."):application.status(); }
         if(path.equals("/api/state")) {
             JSONArray stays=db.query("SELECT s.*,c.state AS card_state FROM stays s JOIN cards c ON c.id=s.card_id WHERE s.state='active' ORDER BY s.entered DESC");
             for(int i=0;i<stays.length();i++) stays.getJSONObject(i).put("quote",Rules.quote(stays.getJSONObject(i),now()));
-            JSONObject r=new JSONObject().put("serverTime",now()).put("zone",Rules.ZONE).put("name",user.getString("name")).put("role",user.getString("role")).put("csrf",user.getString("csrf"))
+            JSONObject r=new JSONObject().put("serverTime",now()).put("zone",Rules.ZONE).put("name",user.getString("display_name")).put("login",user.getString("name")).put("role",user.getString("role")).put("csrf",user.getString("csrf"))
                 .put("config",config()).put("version",configRow().getInt("version")).put("cards",db.query("SELECT id,state FROM cards ORDER BY id")).put("stays",stays);
             r.put("monthly",db.query("SELECT m.*,CASE WHEN p.id IS NULL THEN 0 ELSE 1 END AS paid FROM monthly m LEFT JOIN payments p ON p.monthly_id=m.id WHERE m.end_at>=? ORDER BY m.created DESC LIMIT 500",isAdmin(user)?0:now()));
             r.put("report",report(today(),user.getString("role").equals("admin")?null:user.getString("name")));
-            if(isAdmin(user)) r.put("users",db.query("SELECT id,name,role,active FROM users ORDER BY name"))
+            if(isAdmin(user)) r.put("accessPolicy",accessPolicy()).put("users",db.query("SELECT id,name,display_name,role,active FROM users ORDER BY name"))
                 .put("sync",new JSONObject().put("pending",db.one("SELECT COUNT(*) AS n FROM outbox WHERE confirmed=0").getInt("n")).put("last",meta("lastSync")));
             return r;
         }
@@ -148,8 +176,8 @@ public final class Api {
     private JSONObject write(String path,JSONObject b,JSONObject u) {
         String actor=u.getString("name");
         if(path.equals("/api/backup")) {
-            admin(u); audit(actor,"backup_export","local",new JSONObject().put("encrypted",true));
-            try { return new JSONObject().put("backup",Backups.export(db,b.getString("password"),now())); } catch(IllegalArgumentException e) { throw e; } catch(Exception e) { throw new IllegalArgumentException("No se pudo crear el respaldo cifrado."); }
+            admin(u);
+            try { JSONObject backup=Backups.export(db,b.getString("password"),now());backupAt=now();db.exec("INSERT OR REPLACE INTO meta VALUES('lastBackup',?)",String.valueOf(backupAt));audit(actor,"backup_export","local",new JSONObject().put("encrypted",true));return new JSONObject().put("backup",backup); } catch(IllegalArgumentException e) { throw e; } catch(Exception e) { throw new IllegalArgumentException("No se pudo crear el respaldo cifrado."); }
         }
         if(path.equals("/api/restore")) {
             admin(u); Rules.require(b.optString("confirmation").equals("RESTAURAR"),"Escribe RESTAURAR para confirmar la sustitución de datos locales."); JSONObject current=db.one("SELECT salt,hash FROM users WHERE id=?",u.getString("id")); Rules.require(Security.equal(Security.password(b.getString("pin"),current.getString("salt")),current.getString("hash")),"PIN de administrador incorrecto.");
@@ -177,18 +205,22 @@ public final class Api {
             db.exec("UPDATE cards SET state='assigned' WHERE id=?",card); audit(actor,"entry",id,service);
             return new JSONObject().put("id",id).put("entered",entered);
         }
-        if(path.equals("/api/scan")) {
-            String token=b.getString("token"); JSONObject c=db.one("SELECT id,state FROM cards WHERE token=?",token);
-            Rules.require(c!=null,"Código desconocido o revocado."); return c;
+        if(path.equals("/api/cancel-entry")) {
+            JSONObject stay=active(b.getString("id")); String why=reason(b);
+            Rules.require(db.one("SELECT id FROM payments WHERE stay_id=?",stay.getString("id"))==null,"Una estancia pagada requiere revisión administrativa; no se elimina su pago.");
+            db.exec("UPDATE stays SET state='cancelled' WHERE id=?",stay.getString("id"));
+            db.exec("UPDATE cards SET state='available' WHERE id=? AND state='assigned'",stay.getInt("card_id"));
+            audit(actor,"entry_cancelled",stay.getString("id"),new JSONObject().put("reason",why).put("authorizedBy",u.getString("authorizedBy")));
+            return new JSONObject().put("ok",true);
         }
         if(path.equals("/api/cancel-wash")) {
             JSONObject s=active(b.getString("id")), service=new JSONObject(s.getString("service"));
             Rules.require(!service.optString("wash").isEmpty(),"No hay lavado activo."); String reason=reason(b);
             if(service.getString("mode").equals("day_wash")||service.getString("mode").equals("wash_only")) {
-                admin(u); Rules.require(b.has("replacementMode"),"Al cancelar este paquete, el administrador debe seleccionar la modalidad restante explícitamente.");
+                Rules.require(b.has("replacementMode"),"Al cancelar este paquete, el administrador debe seleccionar la modalidad restante explícitamente.");
                 String replacement=b.getString("replacementMode"); Rules.require(replacement.equals("hourly")||replacement.equals("temporary"),"Modalidad restante inválida."); service.put("mode",replacement);
             }
-            service.put("wash",""); db.exec("UPDATE stays SET service=? WHERE id=?",service.toString(),s.getString("id")); audit(actor,"cancel_wash",s.getString("id"),new JSONObject().put("reason",reason));
+            service.put("wash",""); db.exec("UPDATE stays SET service=? WHERE id=?",service.toString(),s.getString("id")); audit(actor,"cancel_wash",s.getString("id"),new JSONObject().put("reason",reason).put("authorizedBy",u.getString("authorizedBy")));
             return new JSONObject().put("ok",true);
         }
         if(path.equals("/api/lost-card")) {
@@ -249,13 +281,15 @@ public final class Api {
             db.exec("INSERT INTO settings VALUES(?,?,?,?)",version,c.toString(),now(),actor); audit(actor,"config",String.valueOf(version),new JSONObject().put("reason",why)); return new JSONObject().put("version",version);
         }
         if(path.equals("/api/application-update")) {admin(u);Rules.require(application!=null,"La actualización se prepara en la tablet Android.");JSONObject result=application.prepareUpdate();audit(actor,"update_requested","application",new JSONObject());return result;}
-        if(path.equals("/api/users")) { admin(u); createUser(b.getString("name").trim().toLowerCase(Locale.ROOT),b.getString("password"),b.getString("role")); audit(actor,"user_created",b.getString("name"),new JSONObject().put("role",b.getString("role"))); return new JSONObject().put("ok",true); }
+        if(path.equals("/api/access-policy")) {admin(u);int a=b.getInt("adminMinutes"),e=b.getInt("employeeMinutes");Rules.require(a>=1&&a<=120&&e>=1&&e<=120,"Inactividad: de 1 a 120 minutos.");JSONObject policy=new JSONObject().put("adminMinutes",a).put("employeeMinutes",e).put("proposedDefaults",false);db.exec("INSERT OR REPLACE INTO meta VALUES('accessPolicy',?)",policy.toString());audit(actor,"access_policy","web",policy);return policy;}
+        if(path.equals("/api/users")) { admin(u); createUser(b.getString("name"),b.getString("password"),b.getString("role")); audit(actor,"user_created",b.getString("name"),new JSONObject().put("role",b.getString("role"))); return new JSONObject().put("ok",true); }
         if(path.equals("/api/user-update")) {
             admin(u); JSONObject target=db.one("SELECT * FROM users WHERE id=?",b.getString("id")); Rules.require(target!=null,"Usuario desconocido."); String role=b.getString("role"); Rules.require(role.equals("admin")||role.equals("employee"),"Rol inválido."); boolean enabled=b.getBoolean("active");
             if(target.getString("role").equals("admin")&&(!enabled||!role.equals("admin"))) Rules.require(db.one("SELECT COUNT(*) AS n FROM users WHERE role='admin' AND active=1").getInt("n")>1,"Conserva al menos un administrador activo.");
             db.exec("UPDATE users SET role=?,active=? WHERE id=?",role,enabled?1:0,target.getString("id"));
+            if(b.has("displayName")) { String display=b.getString("displayName").trim(); Rules.require(!display.isEmpty()&&display.length()<=80,"Nombre visible: de 1 a 80 caracteres."); db.exec("UPDATE users SET display_name=? WHERE id=?",display,target.getString("id")); }
             String pin=b.optString("pin"); if(!pin.isEmpty()) { Security.pin(pin); String salt=Security.random(); db.exec("UPDATE users SET salt=?,hash=? WHERE id=?",salt,Security.password(pin,salt),target.getString("id")); }
-            db.exec("DELETE FROM sessions WHERE user_id=?",target.getString("id")); audit(actor,"user_updated",target.getString("name"),new JSONObject().put("role",role).put("active",enabled).put("pinReset",!pin.isEmpty())); return new JSONObject().put("ok",true);
+            if(!pin.isEmpty()||!role.equals(target.getString("role"))||enabled!=(target.getInt("active")==1)) db.exec("DELETE FROM sessions WHERE user_id=?",target.getString("id")); audit(actor,"user_updated",target.getString("name"),new JSONObject().put("role",role).put("active",enabled).put("pinReset",!pin.isEmpty())); return new JSONObject().put("ok",true);
         }
         if(path.equals("/api/card-admin")) {
             admin(u); int id=b.getInt("card"); JSONObject c=db.one("SELECT * FROM cards WHERE id=?",id); Rules.require(c!=null,"Tarjeta desconocida.");
@@ -273,6 +307,24 @@ public final class Api {
         return new JSONObject().put("type",type).put("plate",plate).put("color",color).put("brand",brand).put("notes",notes);
     }
     private JSONObject active(String id) { JSONObject s=db.one("SELECT * FROM stays WHERE id=? AND state='active'",id); Rules.require(s!=null,"La estancia ya fue cerrada o no existe."); return s; }
+    private JSONObject scan(JSONObject body) {
+        JSONObject card=body.has("token")?db.one("SELECT id,state FROM cards WHERE token=?",body.getString("token")):db.one("SELECT id,state FROM cards WHERE id=?",body.getInt("card"));
+        Rules.require(card!=null,"Código desconocido o revocado.");
+        JSONObject stay=db.one("SELECT id FROM stays WHERE card_id=? AND state='active'",card.getInt("id"));
+        String status=card.getString("state");
+        return card.put("action",status.equals("assigned")&&stay!=null?"exit":status.equals("available")&&stay==null?"entry":"blocked").put("stayId",stay==null?JSONObject.NULL:stay.getString("id"));
+    }
+    private String authorizeCancellation(JSONObject user,JSONObject body) {
+        if(isAdmin(user)) return user.getString("name");
+        String name=body.optString("adminName").trim().toLowerCase(Locale.ROOT),pin=body.optString("adminPin");
+        Rules.require(name.length()<=40&&pin.length()<=128,"Credenciales inválidas.");
+        String attempt="cancel:"+name; JSONObject fail=db.one("SELECT * FROM attempts WHERE name=?",attempt);
+        Rules.require(fail==null||fail.getInt("count")<5||fail.getLong("until_at")<=now(),"Demasiados intentos. Espera 15 minutos.");
+        JSONObject account=db.one("SELECT * FROM users WHERE name=? AND role='admin' AND active=1",name);
+        boolean valid=Security.equal(Security.password(pin,account==null?"dummy-salt":account.getString("salt")),account==null?Security.hash("invalid"):account.getString("hash"));
+        if(!valid) { int count=fail!=null&&fail.getLong("until_at")>now()?fail.getInt("count")+1:1; db.exec("INSERT OR REPLACE INTO attempts VALUES(?,?,?)",attempt,count,now()+900000); throw new IllegalArgumentException("Se requiere autorización de un administrador activo."); }
+        db.exec("DELETE FROM attempts WHERE name=?",attempt); return name;
+    }
     private String reason(JSONObject b) { String s=b.optString("reason").trim(); Rules.require(s.length()>=4 && s.length()<=500,"Registra un motivo de 4 a 500 caracteres."); return s; }
     private boolean isAdmin(JSONObject u) { return u.getString("role").equals("admin"); }
     private void admin(JSONObject u) { Rules.require(isAdmin(u),"Se requiere un usuario administrador."); }
@@ -293,13 +345,16 @@ public final class Api {
         JSONObject categories=new JSONObject(), employees=new JSONObject(); long total=0;
         for(String key:new String[]{"parking_hourly_normal","parking_hourly_preferred","time_free_normal","time_free_preferred","day_addon","wash_auto","wash_camioneta","wash_van","wash_pickup","pension_temporary","pension_monthly_12","pension_monthly_24","lost_card"}) categories.put(key,0);
         for(int i=0;i<payments.length();i++) { JSONObject p=payments.getJSONObject(i); total+=p.getLong("total"); employees.put(p.getString("actor"),employees.optLong(p.getString("actor"))+p.getLong("total")); JSONArray lines=new JSONArray(p.getString("lines")); for(int j=0;j<lines.length();j++) { JSONObject l=lines.getJSONObject(j); categories.put(l.getString("category"),categories.optLong(l.getString("category"))+l.getLong("cents")); } }
-        JSONObject count=db.one("SELECT COUNT(*) AS n FROM stays WHERE entered>=? AND entered<?",a,b), exits=db.one("SELECT COUNT(*) AS n FROM stays WHERE exited>=? AND exited<?",a,b);
+        JSONObject count=db.one("SELECT COUNT(*) AS n FROM stays WHERE entered>=? AND entered<? AND state<>'cancelled'",a,b), exits=db.one("SELECT COUNT(*) AS n FROM stays WHERE exited>=? AND exited<? AND state='closed'",a,b);
         return new JSONObject().put("date",date).put("categories",categories).put("employees",employees).put("total",total).put("payments",payments).put("entries",count.getInt("n")).put("exits",exits.getInt("n"));
     }
     public synchronized JSONArray pendingEvents() { return db.query("SELECT seq,event_id,body FROM outbox WHERE confirmed=0 ORDER BY seq LIMIT 50"); }
     private Map<String,String> params(String path) { Map<String,String> result=new HashMap<>(); for(String part:path.substring(path.indexOf('?')+1).split("&")) { String[] pair=part.split("=",2); if(pair.length==2) result.put(pair[0],pair[1]); } Rules.require(result.containsKey("from")&&result.containsKey("to"),"Indica inicio y fin del periodo."); return result; }
     public synchronized void confirmEvents(long seq) { db.exec("UPDATE outbox SET confirmed=1 WHERE seq<=?",seq); db.exec("INSERT OR REPLACE INTO meta VALUES('lastSync',?)",String.valueOf(now())); }
     public synchronized String meta(String id) { JSONObject row=db.one("SELECT value FROM meta WHERE id=?",id); return row==null?"":row.getString("value"); }
+    public synchronized JSONObject accessPolicy() {String saved=meta("accessPolicy");return saved.isEmpty()?new JSONObject().put("adminMinutes",5).put("employeeMinutes",15).put("proposedDefaults",true):new JSONObject(saved);}
+    public int recentConnections() {long at=now();return (int)clients.values().stream().filter(t->at-t<=180000).count();}
+    public long lastBackup() {return backupAt;}
     public synchronized JSONObject occupancySnapshot() { JSONObject daily=report(today(),null); return new JSONObject().put("installation",meta("installation")).put("at",now()).put("occupancy",db.one("SELECT COUNT(*) AS n FROM stays WHERE state='active'").getInt("n")).put("entries",daily.getInt("entries")).put("exits",daily.getInt("exits")); }
     private Reply error(int status,String message) { Reply r=new Reply(new JSONObject().put("error",message)); r.status=status; return r; }
 }

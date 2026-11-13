@@ -7,9 +7,19 @@ El proyecto conserva el motor y la persistencia desarrollados inicialmente. El e
 ## Operación
 
 1. Ingresar con usuario y PIN personal de 6 a 12 dígitos.
-2. **Entrada:** escanear o elegir tarjeta, identificar vehículo, confirmar datos y seleccionar servicio.
-3. **Salida:** escanear tarjeta o buscar el vehículo activo; comprobar físicamente sus características y confirmar efectivo. El servidor vuelve a calcular el total antes de cerrar.
-4. **Mi actividad:** cada empleado consulta sus propios cobros. Administración contiene pensiones, reportes, tarjetas, reglas, usuarios y respaldos.
+2. **Escanear tarjeta:** si está libre abre el ingreso; si está asignada abre la salida. **Usar número** ofrece la misma identificación sin cámara. Escanear no registra entradas ni cobra por sí solo.
+3. **Ingreso:** elegir marca y color en las listas; «Otro» permite escribir. Tipo, placas y servicio se confirman con el vehículo. Sin placas, registrar una seña particular. El lavado toma el precio del tipo seleccionado.
+4. **Salida:** verificar físicamente el vehículo y confirmar efectivo. «Exacto» y los billetes sugeridos sólo llenan el importe; el servidor recalcula y registra un pago único al confirmar. Se muestra cambio y se vuelve al trabajo.
+5. **Cancelaciones:** una entrada activa o un lavado pendiente requieren autorización de administrador y motivo. Un empleado puede pedir ese PIN dentro de la operación; no cambia de usuario. El registro se conserva en auditoría; no se borran pagos cerrados.
+6. El administrador entra a su resumen del negocio; el empleado a vehículos y escaneo. **Mi actividad** muestra únicamente sus cobros. **Equipo** concentra usuarios y permisos, conserva mayúsculas del nombre visible y permite desactivar accesos manteniendo su historial.
+
+### Imprimir las 35 tarjetas
+
+Administración → **Tarjetas** → **Descargar PDF carta** o **Imprimir**. Son cinco hojas carta verticales, ocho tarjetas por hoja, con guías de corte. Cada tarjeta mide **85.60 × 53.98 mm**, tamaño bancario ID-1. El QR ocupa la mitad izquierda; a la derecha van marca, nombre, número, tarifas principales y reglas, incluido el importe por extravío vigente en la configuración. Los cinco números de reserva no se activan al imprimir.
+
+En la impresora elegir **Carta y 100 % / Tamaño real**, sin «Ajustar a página»; si se imprime desde el navegador, quitar sus encabezados/pies. Los PDF mantienen QR vectoriales y cuatro módulos blancos de margen. No regeneran los códigos: utilizan los 35 de esa instalación. No compartir el PDF públicamente. Al cambiar tarifas o reemitir un QR, volver a imprimir las tarjetas afectadas.
+
+El bloqueo web por inactividad conserva el formulario abierto y pide el mismo PIN para continuar, sin cobrar al volver. Valores técnicos iniciales **propuestos**: administrador 5 minutos y empleado 15; configurables en Equipo. La sesión tiene un máximo de 12 horas. El bloqueo de mantenimiento nativo es independiente, inicialmente 5 minutos y configurable en Opciones avanzadas; no detiene el servicio ni cambia el bloqueo de pantalla de Android.
 
 Una fotografía se mantiene temporalmente en un canvas del teléfono. El OCR se ejecuta con recursos locales; propone una lectura editable de placa. Marca y color se confirman manualmente: no se simula un modelo que no existe. Se liberan cámara, canvas y worker al confirmar, cancelar o salir. La aplicación no escribe fotografías ni las envía al servidor; el navegador o sistema operativo puede mantener memoria temporal fuera del control de la aplicación.
 
@@ -57,13 +67,13 @@ La compilación genera una APK **de pruebas**, con clave de desarrollo local exc
 
 ## Instalación en HONOR Pad 8
 
-[Descargar APK de pruebas 0.4.0 para la tablet](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/download/v0.4.0/El-Oeste-0.4.0-pruebas.apk).
+[Descargar APK de pruebas 0.5.0 para la tablet](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/download/v0.5.0/El-Oeste-0.5.0-pruebas.apk).
 
-1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.4.0. No se requiere una computadora para generar certificados.
+1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.5.0 encima de la existente, conservando sus datos. No se requiere una computadora para generar certificados.
 2. Abrir **El Oeste · Servidor**, crear el usuario administrador y su PIN. La app prepara automáticamente una CA y un certificado únicos para esa instalación. Las claves privadas se generan dentro de AndroidKeyStore y no se exportan ni vienen compartidas dentro de la APK.
 3. Cuando indique **Activo**, pulsar **Conectar un celular**. Con el celular en el mismo Wi-Fi, escanear el QR, descargar `El-Oeste-CA.cer` y seguir la guía de autorización del teléfono. La pantalla de la tablet muestra la huella SHA-256 para comprobar que se instala su certificado correcto.
 4. Abrir la dirección `https://IP-DE-LA-TABLET:8443`, entrar con usuario/PIN y agregarla a la pantalla de inicio. Autorizar la cámara al usarla. No omitir advertencias TLS.
-5. Crear empleados desde Administración y generar las 35 tarjetas en **Tarjetas QR → Imprimir tarjetas**. Sus secretos nacen aleatoriamente en la instalación privada.
+5. Crear empleados desde **Resumen del negocio → Equipo** y obtener las 35 tarjetas en **Tarjetas → Descargar PDF carta**. Sus secretos nacen aleatoriamente en la instalación privada.
 
 **¿Qué se ahorró?** La instalación habitual ya no necesita crear ni importar `server.p12`, instalar JDK en otra computadora o manejar una contraseña de certificado. La CA pública se obtiene directamente de la tablet. Los certificados importados en versiones anteriores se conservan; la importación externa sigue disponible dentro de Opciones avanzadas.
 

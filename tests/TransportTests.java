@@ -13,9 +13,10 @@ public final class TransportTests {
     static void ok(boolean value,String message){checks++;if(!value)throw new AssertionError(message);}
     public static void main(String[] args)throws Exception {
         System.setProperty("sun.net.http.allowRestrictedHeaders","true"); // Emit Origin in this non-browser test client.
-        String password=System.getenv("OESTE_TEST_CERT_SECRET");
-        SSLContext serverTls;try(InputStream in=new FileInputStream(".dev/tls-test/server.p12")){serverTls=LocalServer.tls(in,password.toCharArray());}
-        KeyStore trusted=KeyStore.getInstance(KeyStore.getDefaultType());trusted.load(null,null);try(InputStream in=new FileInputStream(".dev/tls-test/El-Oeste-CA.cer")){trusted.setCertificateEntry("test-ca",CertificateFactory.getInstance("X.509").generateCertificate(in));}
+        KeyPairGenerator keys=KeyPairGenerator.getInstance("RSA");keys.initialize(2048);KeyPair ca=keys.generateKeyPair(),leaf=keys.generateKeyPair();
+        X509Certificate root=CertificateIssuer.root(ca,"El Oeste transporte de ensayo",new java.util.Date()),certificate=CertificateIssuer.server(leaf.getPublic(),ca.getPrivate(),root,java.util.List.of(),new java.util.Date());
+        SSLContext serverTls=LocalServer.tls(leaf.getPrivate(),new X509Certificate[]{certificate,root});
+        KeyStore trusted=KeyStore.getInstance(KeyStore.getDefaultType());trusted.load(null,null);trusted.setCertificateEntry("test-ca",root);
         TrustManagerFactory manager=TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());manager.init(trusted);SSLContext client=SSLContext.getInstance("TLS");client.init(null,manager.getTrustManagers(),null);
         try(JdbcDb db=new JdbcDb(":memory:")) {Api api=new Api(db);api.bootstrap("transport","87654321");try(LocalServer server=new LocalServer(api,name->{if(!name.equals("index.html"))throw new IOException();return "<html>El Oeste</html>".getBytes("UTF-8");},0,serverTls)){
             server.start();String base="https://localhost:"+server.port();HttpsURLConnection home=(HttpsURLConnection)new URL(base+"/").openConnection();home.setSSLSocketFactory(client.getSocketFactory());ok(home.getResponseCode()==200,"TLS CA and hostname are valid without bypass");ok(home.getCipherSuite().contains("AES"),"encrypted transport");home.getInputStream().close();home.disconnect();

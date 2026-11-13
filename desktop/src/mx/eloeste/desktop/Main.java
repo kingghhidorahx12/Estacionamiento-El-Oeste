@@ -13,7 +13,7 @@ public final class Main {
         if(api.needsSetup()) {
             String name=System.getenv("OESTE_ADMIN_USER"),password=System.getenv("OESTE_ADMIN_PASSWORD");
             if(name==null||password==null) { Console c=System.console(); if(c==null) throw new IllegalStateException("Primera ejecución: usa scripts/start.ps1 para crear el administrador sin un PIN por defecto."); name=c.readLine("Usuario administrador: "); char[] chars=c.readPassword("PIN personal (6 a 12 dígitos): "); password=new String(chars); java.util.Arrays.fill(chars,'\0'); }
-            api.bootstrap(name.trim().toLowerCase(java.util.Locale.ROOT),password);
+            api.bootstrap(name.trim(),password);
         }
         SSLContext tls=null; String keystore=System.getenv("OESTE_TLS_P12");
         if(keystore!=null) try(InputStream in=Files.newInputStream(Paths.get(keystore))) { String password=System.getenv("OESTE_TLS_PASSWORD"); if(password==null) throw new IllegalStateException("Falta OESTE_TLS_PASSWORD"); tls=LocalServer.tls(in,password.toCharArray()); }
