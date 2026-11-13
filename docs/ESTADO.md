@@ -85,3 +85,5 @@ Verificación de esta actualización:
 Pendiente antes de producción: probar generación de claves, TLS y QR dentro de Android en la HONOR real; instalar y autorizar la CA en Safari/iPhone y Chrome/Android; renovar al cambiar IP; Wi-Fi sin Internet, bloqueo/reinicio, consumo prolongado y coexistencia con El Muelle y báscula. Las pruebas JDK y de navegador no sustituyen estas verificaciones físicas. Cloudflare conserva los pendientes de cuenta/dominio/despliegue indicados en la sección anterior.
 
 Entrega 0.3.0: `artifacts/El-Oeste-0.3.0-pruebas.apk`, 16,771,737 bytes, SHA-256 `53daa881e221ce35a8321ac2a420a1c9bc1caadd3d9fcbf739673197d127c08e`. Paquete web: `artifacts/El-Oeste-Web-0.3.0.zip`; las huellas de ambos se regeneran en `artifacts/SHA256SUMS.json`. Se cotejaron todos los recursos del APK byte a byte contra `web/` y se verificó ausencia de bases, respaldos, certificados, claves y archivos privados.
+
+Commit de implementación 0.3.0: `8e262603c41878b9816d737aec83799679562f06` (36 archivos revisados; sin artefactos privados).
