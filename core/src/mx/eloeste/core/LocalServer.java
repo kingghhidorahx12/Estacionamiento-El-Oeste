@@ -46,6 +46,8 @@ public final class LocalServer implements Closeable {
     private void serve(Socket client) {
         try(Socket s=client) {
             s.setSoTimeout(10000); InputStream in=new BufferedInputStream(s.getInputStream()); OutputStream out=s.getOutputStream();
+            boolean apiRequest=false;
+            try {
             String first=line(in,2048); if(first==null) return; String[] req=first.split(" "); if(req.length!=3) { send(out,400,"text/plain",new byte[0],null); return; }
             String method=req[0],path=req[1]; Map<String,String> h=new HashMap<>(); String l; int bytes=0;
             while((l=line(in,4096))!=null&&!l.isEmpty()) { bytes+=l.length(); if(bytes>16384) throw new IOException("Headers too long"); int colon=l.indexOf(':'); if(colon<=0) throw new IOException("Invalid header"); String key=l.substring(0,colon).toLowerCase(Locale.ROOT); if(h.containsKey(key)) throw new IOException("Duplicate header"); h.put(key,l.substring(colon+1).trim()); }
@@ -53,6 +55,7 @@ public final class LocalServer implements Closeable {
             if(host.isEmpty() || (!secure && !(host.equals("localhost:"+port())||host.equals("127.0.0.1:"+port())||host.equals("[::1]:"+port())))) { send(out,403,"text/plain",new byte[0],null); return; }
             if(h.containsKey("transfer-encoding")) { send(out,400,"text/plain",new byte[0],null); return; }
             if(path.startsWith("/api/")) {
+                apiRequest=true;
                 if(!method.equals("GET") && !((secure?"https://":"http://")+host).equals(h.get("origin"))) { send(out,403,"application/json","{\"error\":\"Origen no permitido.\"}".getBytes(StandardCharsets.UTF_8),null); return; }
                 int length=Integer.parseInt(h.getOrDefault("content-length","0")); if(length<0||length>(path.equals("/api/restore")?12*1024*1024:65536)) { send(out,413,"text/plain",new byte[0],null); return; }
                 byte[] raw=new byte[length]; int offset=0; while(offset<length) { int n=in.read(raw,offset,length-offset); if(n<0) throw new EOFException(); offset+=n; }
@@ -67,6 +70,9 @@ public final class LocalServer implements Closeable {
             if(!name.matches("/[a-zA-Z0-9_./-]+")||name.contains("..")||name.startsWith("//")) { send(out,404,"text/plain",new byte[0],null); return; }
             try { byte[] file=assets.read(name.substring(1)); String type=name.endsWith(".html")?"text/html; charset=utf-8":name.endsWith(".css")?"text/css":name.endsWith(".js")?"text/javascript":name.endsWith(".svg")?"image/svg+xml":name.endsWith(".png")?"image/png":name.endsWith(".ttf")?"font/ttf":name.endsWith(".wasm")?"application/wasm":name.endsWith(".webmanifest")?"application/manifest+json":"application/octet-stream"; send(out,200,type,file,null); }
             catch(IOException ex) { send(out,404,"text/plain","No encontrado".getBytes(StandardCharsets.UTF_8),null); }
+            } catch(Exception ex) {
+                if(apiRequest)try{send(out,500,"application/json; charset=utf-8","{\"error\":\"La tablet no pudo procesar la solicitud. Reintenta con el mismo identificador.\"}".getBytes(StandardCharsets.UTF_8),null);}catch(IOException ignored){}
+            }
         } catch(Exception ex) { /* Never log passwords, cookies, vehicles or request bodies. */ }
     }
     private void send(OutputStream out,int status,String type,byte[] body,String cookie) throws IOException {

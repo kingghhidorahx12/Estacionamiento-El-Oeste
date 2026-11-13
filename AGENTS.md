@@ -9,6 +9,7 @@ Continúa el código existente. Fuente consolidada del propietario: 12/11/2026; 
 - Fotografías sólo en memoria del teléfono. No subir vehículos ni secretos QR a Cloudflare. No registrar secretos en logs.
 - Antes de publicar: revisar la lista exacta de archivos, ejecutar pruebas afectadas y la integración final. Nunca incluir `.dev`, `data`, bases, respaldos, certificados, PIN, QR productivos, claves ni APK privadas en Git.
 - TLS Android: conservar CA `oeste-local-root-v1`; la clave de servidor v2 autoriza DIGEST_NONE y ENCRYPTION_PADDING_NONE para las operaciones delegadas de Conscrypt. Mantener la comprobación TLS 1.2/1.3 antes de mostrar Activo; una actualización no debe exigir borrar datos ni reinstalar la CA.
+- Actualizaciones: publicar APK verificadas en Releases del repositorio oficial; `updates/latest.json` se publica al final, tras cotejar la descarga. Mantener firma, paquete y versión creciente; Android confirma la instalación. Nunca incluir la clave de firma, datos ni certificados de la tablet en la distribución.
 - Herramientas: JDK 21 y SDK Android 35. `scripts/build.ps1 -Test` prueba Java; `node --test tests/remote.test.mjs` prueba la réplica. Android se compila por separado con `scripts/build-android.ps1`; las pruebas nativas requieren un dispositivo de ensayo o emulador funcional.
 - Declarar por separado navegador, simulaciones, compilación y pruebas físicas. No afirmar compatibilidad física con HONOR/iPhone ni convivencia con la báscula sin evidencia real.
 

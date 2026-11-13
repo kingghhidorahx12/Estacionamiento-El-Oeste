@@ -57,7 +57,7 @@ La compilación genera una APK **de pruebas**, con clave de desarrollo local exc
 
 ## Instalación en HONOR Pad 8
 
-1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.3.1. No se requiere una computadora para generar certificados.
+1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.4.0. No se requiere una computadora para generar certificados.
 2. Abrir **El Oeste · Servidor**, crear el usuario administrador y su PIN. La app prepara automáticamente una CA y un certificado únicos para esa instalación. Las claves privadas se generan dentro de AndroidKeyStore y no se exportan ni vienen compartidas dentro de la APK.
 3. Cuando indique **Activo**, pulsar **Conectar un celular**. Con el celular en el mismo Wi-Fi, escanear el QR, descargar `El-Oeste-CA.cer` y seguir la guía de autorización del teléfono. La pantalla de la tablet muestra la huella SHA-256 para comprobar que se instala su certificado correcto.
 4. Abrir la dirección `https://IP-DE-LA-TABLET:8443`, entrar con usuario/PIN y agregarla a la pantalla de inicio. Autorizar la cámara al usarla. No omitir advertencias TLS.
@@ -106,3 +106,23 @@ Si el celular instala la CA y abre la guía, pero el acceso al estacionamiento t
 Antes de anunciar Activo, la conexión automática comprueba TLS 1.2 y TLS 1.3 con su proveedor real, validando CA y nombre de host en una prueba interna. Si falla, muestra un código TLS12/TLS13 para revisión. Las pruebas JDK no prueban por sí mismas el comportamiento de una HONOR física.
 
 Referencia de la corrección: [KeyGenParameterSpec.Builder de Android](https://developer.android.com/reference/android/security/keystore/KeyGenParameterSpec.Builder#setDigests(java.lang.String...)) documenta las autorizaciones de digest y padding necesarias para claves TLS delegadas. La versión anterior no autorizaba DIGEST_NONE ni ENCRYPTION_PADDING_NONE en la clave de servidor.
+
+## Usuarios y actualizaciones desde Internet · 0.4.0
+
+Para incorporar el actualizador por primera vez, instalar la APK 0.4.0 encima de la existente **en la tablet**, abrir El Oeste · Servidor y activar la conexión. Se conserva la cuenta inicial, la base y la CA.
+
+Para crear empleados: Administración → Reglas y equipo → Usuarios y permisos → Agregar usuario. Escribir usuario, PIN de 6 a 12 dígitos y permiso. La pantalla muestra Creando usuario mientras espera; un reintento con los mismos datos conserva el identificador. El PIN sigue usando PBKDF2 de 210,000 iteraciones; se reutiliza su verificador protegido para evitar una segunda derivación al registrar el mismo alta. Los PIN no se guardan en el almacenamiento del navegador.
+
+Para futuras versiones: **Administración → Actualizar aplicación → Buscar y preparar actualización**. Puede solicitarlo un administrador desde un equipo conectado a la operación local. La tablet descarga de GitHub por Internet y, si existe una versión posterior, comprueba tamaño, SHA-256, paquete, versión, compatibilidad Android y la firma de la instalación actual. Después, abrir la notificación o El Oeste · Servidor y pulsar **Instalar actualización**. Android puede pedir autorizar a El Oeste como origen de instalación una vez y siempre presenta su confirmación. También se puede iniciar la búsqueda desde Actualizar aplicación en la app nativa.
+
+La descarga terminada se conserva para continuar si Android cierra el proceso. Una solicitud administrativa permite abrir sólo esa instalación durante 30 minutos; no desbloquea el resto de la configuración ni se instala en silencio. Una actualización no borra datos ni cambia la CA. Sin Internet continúa la operación local; sólo la búsqueda/descarga necesita conexión externa. El panel Cloudflare sigue siendo de consulta y no recibe un canal de comandos hacia la tablet.
+
+La APK de este canal es una versión de pruebas. La confirmación y la instalación nativas deben verificarse en los dispositivos reales antes de una distribución de producción.
+
+Publicación del canal, para mantenimiento:
+
+- Manifest público: `updates/latest.json`, servido desde la rama main del repositorio oficial. Identifica una única APK bajo Releases, con versión, versionCode, tamaño y SHA-256. No contiene claves ni datos de negocio.
+- Publicar primero la APK verificada en la versión correspondiente de GitHub y actualizar el manifest sólo después de comprobar su descarga. El código fuente y los datos privados se mantienen separados de los binarios publicados.
+- Conservar privadamente la misma clave de firma local. Una APK construida con otra firma se rechaza aunque el archivo venga del mismo repositorio. No publicar el almacén de claves ni copiar la firma de El Muelle.
+
+La instalación con participación del usuario sigue el [flujo de instalación de Android](https://developer.android.com/reference/android/content/pm/PackageInstaller.SessionParams).

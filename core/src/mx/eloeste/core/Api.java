@@ -11,9 +11,11 @@ public final class Api {
         public int status=200; public JSONObject json; public String cookie;
         Reply(JSONObject json) { this.json=json; }
     }
-    private final Db db; private final LongSupplier clock;
-    public Api(Db db) { this(db,System::currentTimeMillis); }
-    public Api(Db db, LongSupplier clock) { this.db=db; this.clock=clock; migrate(); }
+    public interface Application { JSONObject status(); JSONObject prepareUpdate(); }
+    private final Db db; private final LongSupplier clock; private final Application application;
+    public Api(Db db) { this(db,System::currentTimeMillis,null); }
+    public Api(Db db, LongSupplier clock) { this(db,clock,null); }
+    public Api(Db db, LongSupplier clock,Application application) { this.db=db; this.clock=clock; this.application=application; migrate(); }
     private void migrate() {
         for(String sql:new String[]{
             "CREATE TABLE IF NOT EXISTS settings(version INTEGER PRIMARY KEY,body TEXT NOT NULL,created INTEGER NOT NULL,actor TEXT NOT NULL)",
@@ -70,21 +72,38 @@ public final class Api {
             Rules.require(method.equals("POST"),"Método no admitido.");
             Rules.require(requestKey.matches("[a-zA-Z0-9_-]{16,100}"),"Falta el identificador único de operación.");
             String key=user.getString("id")+":"+requestKey;
-            String material=path+"\n"+body.toString();
-            String fingerprint=Arrays.asList("/api/users","/api/user-update","/api/backup","/api/restore").contains(path)?Security.password(Security.hash(material),meta("installation")):Security.hash(material);
             db.begin();
             try {
                 JSONObject prior=db.one("SELECT * FROM requests WHERE id=?",key);
                 if(prior!=null) {
-                    Rules.require(Security.equal(prior.getString("fingerprint"),fingerprint),"Identificador reutilizado con datos distintos.");
+                    Rules.require(matchesRequest(prior.getString("fingerprint"),path,body),"Identificador reutilizado con datos distintos.");
                     db.commit(); return new Reply(new JSONObject(prior.getString("body")));
                 }
                 JSONObject result=write(path,body,user);
-                if(!path.equals("/api/restore")&&!path.equals("/api/backup")) db.exec("INSERT INTO requests VALUES(?,?,?)",key,fingerprint,result.toString());
+                if(!path.equals("/api/restore")&&!path.equals("/api/backup")) db.exec("INSERT INTO requests VALUES(?,?,?)",key,requestFingerprint(path,body),result.toString());
                 db.commit(); return new Reply(result);
             } catch(Exception e) { db.rollback(); throw e; }
         } catch(IllegalArgumentException|JSONException e) { return error(400,e.getMessage()==null?"Datos inválidos.":e.getMessage()); }
         catch(Exception e) { System.err.println("API operation failed: "+e.getClass().getSimpleName()); return error(500,"No se guardó la operación. Consulta al administrador."); }
+    }
+    private String metadataFingerprint(String path,JSONObject body,String secret) {
+        JSONObject metadata=new JSONObject(body.toString());metadata.remove(secret);return Security.hash(path+"\n"+metadata.toString());
+    }
+    private String requestFingerprint(String path,JSONObject body) {
+        String secret=path.equals("/api/users")?"password":path.equals("/api/user-update")&&!body.optString("pin").isEmpty()?"pin":null;
+        if(secret==null)return Security.hash(path+"\n"+body.toString());
+        JSONObject account=path.equals("/api/users")?db.one("SELECT salt,hash FROM users WHERE name=?",body.getString("name").trim().toLowerCase(Locale.ROOT)):db.one("SELECT salt,hash FROM users WHERE id=?",body.getString("id"));
+        // Reuse the PIN verifier already derived by the write. Never store a fast PIN hash.
+        return new JSONObject().put("v",2).put("metadata",metadataFingerprint(path,body,secret)).put("secret",secret).put("salt",account.getString("salt")).put("hash",account.getString("hash")).toString();
+    }
+    private boolean matchesRequest(String saved,String path,JSONObject body) {
+        if(saved.startsWith("{")) {
+            JSONObject verifier=new JSONObject(saved);String secret=verifier.getString("secret");
+            return verifier.getInt("v")==2&&Security.equal(verifier.getString("metadata"),metadataFingerprint(path,body,secret))&&Security.equal(verifier.getString("hash"),Security.password(body.optString(secret),verifier.getString("salt")));
+        }
+        String material=path+"\n"+body.toString();
+        if(path.equals("/api/users")||path.equals("/api/user-update"))return Security.equal(saved,Security.password(Security.hash(material),meta("installation")))||Security.equal(saved,Security.hash(material));
+        return Security.equal(saved,Security.hash(material));
     }
     private Reply login(JSONObject body) {
         String name=body.optString("name").trim().toLowerCase(Locale.ROOT), password=body.optString("password");
@@ -101,6 +120,7 @@ public final class Api {
         Reply r=new Reply(new JSONObject().put("csrf",csrf).put("name",u.getString("name")).put("role",u.getString("role"))); r.cookie=token; return r;
     }
     private JSONObject read(String path,JSONObject user) {
+        if(path.equals("/api/application")) { admin(user);return application==null?new JSONObject().put("supported",false).put("message","La actualización se prepara en la tablet Android."):application.status(); }
         if(path.equals("/api/state")) {
             JSONArray stays=db.query("SELECT s.*,c.state AS card_state FROM stays s JOIN cards c ON c.id=s.card_id WHERE s.state='active' ORDER BY s.entered DESC");
             for(int i=0;i<stays.length();i++) stays.getJSONObject(i).put("quote",Rules.quote(stays.getJSONObject(i),now()));
@@ -228,7 +248,8 @@ public final class Api {
             JSONObject c=b.getJSONObject("config"); Rules.validateConfig(c); String why=reason(b); int version=configRow().getInt("version")+1;
             db.exec("INSERT INTO settings VALUES(?,?,?,?)",version,c.toString(),now(),actor); audit(actor,"config",String.valueOf(version),new JSONObject().put("reason",why)); return new JSONObject().put("version",version);
         }
-        if(path.equals("/api/users")) { admin(u); createUser(b.getString("name").toLowerCase(Locale.ROOT),b.getString("password"),b.getString("role")); audit(actor,"user_created",b.getString("name"),new JSONObject().put("role",b.getString("role"))); return new JSONObject().put("ok",true); }
+        if(path.equals("/api/application-update")) {admin(u);Rules.require(application!=null,"La actualización se prepara en la tablet Android.");JSONObject result=application.prepareUpdate();audit(actor,"update_requested","application",new JSONObject());return result;}
+        if(path.equals("/api/users")) { admin(u); createUser(b.getString("name").trim().toLowerCase(Locale.ROOT),b.getString("password"),b.getString("role")); audit(actor,"user_created",b.getString("name"),new JSONObject().put("role",b.getString("role"))); return new JSONObject().put("ok",true); }
         if(path.equals("/api/user-update")) {
             admin(u); JSONObject target=db.one("SELECT * FROM users WHERE id=?",b.getString("id")); Rules.require(target!=null,"Usuario desconocido."); String role=b.getString("role"); Rules.require(role.equals("admin")||role.equals("employee"),"Rol inválido."); boolean enabled=b.getBoolean("active");
             if(target.getString("role").equals("admin")&&(!enabled||!role.equals("admin"))) Rules.require(db.one("SELECT COUNT(*) AS n FROM users WHERE role='admin' AND active=1").getInt("n")>1,"Conserva al menos un administrador activo.");

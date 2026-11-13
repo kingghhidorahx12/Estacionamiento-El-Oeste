@@ -17,9 +17,11 @@ public final class MainActivity extends Activity {
     private LinearLayout layout; private boolean unlocked=false,choosingCertificate=false,connecting=false;
     private EditText tlsPassword; private TextView statusText,urlText; private Button activateButton,openButton,connectButton;
     private CertificateShareServer sharing; private WebView qr; private final Handler handler=new Handler(Looper.getMainLooper());
-    private final Runnable monitor=new Runnable() { public void run() { if(unlocked&&!connecting)updateStatus(); handler.postDelayed(this,1000); } };
+    private boolean updateScreen=false,updateAuthorized=false,externalUpdate=false;private TextView updateText;private Button updateCheck,updateInstall;
+    private final Runnable monitor=new Runnable() { public void run() { if(updateScreen&&updateAuthorized)refreshUpdateScreen();else if(unlocked&&!connecting)updateStatus();handler.postDelayed(this,1000); } };
     private android.content.SharedPreferences prefs(){return getSharedPreferences("private",0);}
-    @Override public void onCreate(Bundle state){super.onCreate(state);if(Build.VERSION.SDK_INT>=33&&checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=android.content.pm.PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"},1);show();handler.post(monitor);}
+    @Override public void onCreate(Bundle state){super.onCreate(state);if(Build.VERSION.SDK_INT>=33&&checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=android.content.pm.PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"},1);if(AppUpdates.get(this).authorizePending(getIntent().getStringExtra("updateTicket"))){updateAuthorized=true;showUpdateScreen();}else show();handler.post(monitor);}
+    @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(AppUpdates.get(this).authorizePending(intent.getStringExtra("updateTicket"))){updateAuthorized=true;showUpdateScreen();}}
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private Typeface face(){return Typeface.createFromAsset(getAssets(),"assets/fonts/Manrope-regular.ttf");}
     private GradientDrawable surface(int a,int b){GradientDrawable d=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{a,b});d.setCornerRadius(dp(10));d.setStroke(dp(1),0xffc7d6df);return d;}
@@ -43,7 +45,7 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(0xff102d48);getWindow().setNavigationBarColor(0xff102d48);setContentView(scroll);
     }
     private void show(){
-        connecting=false;closeSharing();frame();
+        updateScreen=false;connecting=false;closeSharing();frame();
         if(!prefs().contains("pinHash")){
             title("Prepara tu estacionamiento");text("Conecta esta tablet al Wi-Fi del negocio y crea el acceso del administrador. La conexión segura se prepara automáticamente.");EditText name=field("Usuario administrador",false),pin=field("PIN personal · 6 a 12 dígitos",true);pin.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD);
             button("Crear acceso y preparar conexión",true,()->{String password=pin.getText().toString();Security.pin(password);AndroidDb db=new AndroidDb(this);try{Api api=new Api(db);if(api.needsSetup())api.bootstrap(name.getText().toString().trim().toLowerCase(Locale.ROOT),password);String salt=Security.random();prefs().edit().putString("pinSalt",salt).putString("pinHash",Security.password(password,salt)).apply();unlocked=true;startForegroundService(new Intent(this,ServerService.class));show();}finally{db.close();}});return;
@@ -56,6 +58,7 @@ public final class MainActivity extends Activity {
         activateButton=button("Activar conexión",true,()->{startForegroundService(new Intent(this,ServerService.class));toast("Preparando la conexión…");});
         openButton=button("Abrir estacionamiento",true,()->{String url=LocalCertificates.url(this);Rules.require(!url.isEmpty(),"Conecta la tablet al Wi-Fi.");startActivity(new Intent(Intent.ACTION_VIEW,android.net.Uri.parse(url)));});
         connectButton=button("Conectar un celular",false,()->connectPhone());text("Para trabajar: tablet encendida y celulares en el mismo Wi-Fi. No necesitas crear ni importar server.p12.");
+        button("Actualizar aplicación",false,()->{updateAuthorized=true;showUpdateScreen();});
         LinearLayout advanced=new LinearLayout(this);advanced.setOrientation(LinearLayout.VERTICAL);advanced.setVisibility(View.GONE);button("Opciones avanzadas",false,()->advanced.setVisibility(advanced.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE));layout.addView(advanced);LinearLayout parent=layout;layout=advanced;
         text("Consulta remota opcional. Envía pagos desglosados y ocupación; las características del vehículo permanecen en la tablet.");EditText syncUrl=field("URL HTTPS del Worker /ingest",false),syncToken=field("Token de sincronización",true);syncUrl.setText(prefs().getString("syncUrl",""));
         button("Guardar consulta remota",false,()->{String url=syncUrl.getText().toString().trim(),token=syncToken.getText().toString();Rules.require(url.isEmpty()||url.matches("https://[a-zA-Z0-9.-]+/ingest"),"Usa la URL HTTPS exacta del Worker.");Rules.require(url.isEmpty()||token.length()>=32||prefs().getString("syncToken","").length()>=32,"Token: mínimo 32 caracteres.");android.content.SharedPreferences.Editor e=prefs().edit().putString("syncUrl",url);if(!token.isEmpty())e.putString("syncToken",token);e.apply();toast("Configuración guardada");});
@@ -72,10 +75,24 @@ public final class MainActivity extends Activity {
         }catch(Exception e){closeSharing();toast("No se pudo abrir la guía. Si importaste un certificado externo, usa su CA original.");}
     }
     private void closeSharing(){if(sharing!=null)try{sharing.close();}catch(IOException ignored){}sharing=null;if(qr!=null){qr.destroy();qr=null;}}
-    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);choosingCertificate=false;if(request!=22||result!=RESULT_OK||data==null||!unlocked)return;String password=tlsPassword.getText().toString();
+    private void showUpdateScreen(){
+        if(!updateAuthorized)return;connecting=false;closeSharing();frame();updateScreen=true;title("Actualizar El Oeste");text("Versión instalada: "+AppUpdates.get(this).status().optString("version"));
+        updateText=text("");updateCheck=button("Buscar y preparar actualización",true,()->{AppUpdates.get(this).prepareUpdate();refreshUpdateScreen();});
+        updateInstall=button("Instalar actualización",true,()->installUpdate());
+        text("La descarga requiere Internet. Se comprueba que el archivo pertenezca a El Oeste y tenga la misma firma de esta instalación. Android te pedirá confirmar. Se conservan los datos y el certificado de la tablet.");
+        button("Volver",false,()->{updateAuthorized=false;updateScreen=false;show();});refreshUpdateScreen();
+    }
+    private void refreshUpdateScreen(){if(updateText==null)return;org.json.JSONObject value=AppUpdates.get(this).status();String state=value.optString("state");updateText.setText(value.optString("message")+(state.equals("downloading")?"\n"+value.optInt("progress")+" %":""));updateCheck.setEnabled(!state.equals("checking")&&!state.equals("downloading"));updateInstall.setVisibility(state.equals("ready")?View.VISIBLE:View.GONE);}
+    private void installUpdate(){
+        if(!updateAuthorized)return;
+        try{if(!getPackageManager().canRequestPackageInstalls()){externalUpdate=true;startActivityForResult(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,android.net.Uri.parse("package:"+getPackageName())),71);return;}
+            updateInstall.setEnabled(false);updateText.setText("Comprobando el instalador…");AppUpdates.get(this).installer((install,error)->{if(isFinishing()||!updateAuthorized)return;updateInstall.setEnabled(true);if(error!=null){toast(error);return;}try{externalUpdate=true;startActivityForResult(install,72);}catch(Exception e){externalUpdate=false;toast("No se pudo abrir el instalador de Android.");}});
+        }catch(Exception e){externalUpdate=false;toast(e.getMessage()==null?"No se pudo abrir el instalador.":e.getMessage());}
+    }
+    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request==71){externalUpdate=false;if(updateAuthorized&&getPackageManager().canRequestPackageInstalls())installUpdate();else toast("Autoriza la instalación de actualizaciones de El Oeste para continuar.");return;}if(request==72){externalUpdate=false;return;}choosingCertificate=false;if(request!=22||result!=RESULT_OK||data==null||!unlocked)return;String password=tlsPassword.getText().toString();
         try(InputStream in=getContentResolver().openInputStream(data.getData());ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] b=new byte[4096];int n;while((n=in.read(b))!=-1){if(out.size()+n>131072)throw new IOException();out.write(b,0,n);}byte[] p12=out.toByteArray();LocalServer.tls(new ByteArrayInputStream(p12),password.toCharArray());Vault.save(this,password);try(FileOutputStream file=openFileOutput("server.p12",MODE_PRIVATE)){file.write(p12);}toast("Certificado importado. Detén y activa el servidor para aplicarlo.");show();}catch(Exception e){toast("No se pudo importar. Revisa el archivo y su contraseña.");}
     }
-    @Override protected void onStop(){super.onStop();closeSharing();if(!choosingCertificate)unlocked=false;}
-    @Override protected void onResume(){super.onResume();if(!unlocked&&!choosingCertificate)show();}
+    @Override protected void onStop(){super.onStop();closeSharing();if(!choosingCertificate&&!externalUpdate){unlocked=false;updateAuthorized=false;}}
+    @Override protected void onResume(){super.onResume();if(!updateAuthorized&&AppUpdates.get(this).authorizePending(null)){updateAuthorized=true;updateScreen=true;}if(updateScreen&&updateAuthorized)showUpdateScreen();else if(!unlocked&&!choosingCertificate)show();}
     @Override protected void onDestroy(){handler.removeCallbacks(monitor);closeSharing();super.onDestroy();}
 }

@@ -7,7 +7,11 @@ import os
 import http.client
 from pathlib import Path
 
-base='http://localhost:8787'
+base=os.environ.get('OESTE_TEST_URL','http://localhost:8787')
+from urllib.parse import urlparse
+target=urlparse(base)
+assert target.scheme=='http' and target.hostname in ('localhost','127.0.0.1'), 'Use only an isolated loopback preview'
+
 jar=http.cookiejar.CookieJar()
 client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
 checks=0
@@ -54,7 +58,7 @@ check(status==200,'logout')
 status,headers,body=req('/api/state')
 check(status==401,'session revoked')
 for path in ('//Users/nexar/private.txt','/../README.md','/%2e%2e/README.md'):
-    connection=http.client.HTTPConnection('localhost',8787,timeout=5)
+    connection=http.client.HTTPConnection(target.hostname,target.port or 80,timeout=5)
     connection.putrequest('GET',path)
     connection.endheaders()
     response=connection.getresponse()

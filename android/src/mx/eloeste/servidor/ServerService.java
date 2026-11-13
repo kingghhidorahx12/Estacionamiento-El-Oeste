@@ -26,7 +26,7 @@ public final class ServerService extends Service {
             try {
                 if(destroyed) return;
                 if(database==null) database=new AndroidDb(this);
-                Api api=new Api(database); if(api.needsSetup()) throw new IllegalStateException("Crea primero el administrador.");
+                Api api=new Api(database,System::currentTimeMillis,AppUpdates.get(this)); if(api.needsSetup()) throw new IllegalStateException("Crea primero el administrador.");
                 String current=String.join(",",LocalCertificates.wifi(this));
                 if(server==null||!current.equals(addresses)||LocalCertificates.expiring(this)) {
                     javax.net.ssl.SSLContext tls=LocalCertificates.ensure(this);

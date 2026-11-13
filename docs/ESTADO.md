@@ -108,3 +108,34 @@ No ejecutado: el emulador sin aceleración no consiguió arrancar Android; la su
 Entrega: `artifacts/El-Oeste-0.3.1-pruebas.apk`, 16,775,833 bytes; SHA-256 `5484dd325b455cba421d849dd1e34488d80be1eebef22bd0a25cee860cbe3335`. Firma de actualización conservada: certificado SHA-256 `ae45ebb586679900420c15199a3d51fcdb8dd8686d2bfe844d8bc031687de325`. Artefactos privados fuera de Git.
 
 Commit de implementación 0.3.1: `73be4bbadeab09553d06d956761c2975f52e32dc` (11 archivos revisados).
+
+
+## Altas de usuarios y canal de actualización · 0.4.0 · 13/11/2026
+
+Reporte: la pantalla de alta muestra falta de confirmación al crear un empleado. La captura no incluye logs de la tablet. Se identificó un coste duplicado comprobable: el alta derivaba el PIN con PBKDF2 y también derivaba otro verificador completo para la idempotencia, mientras el cliente abortaba a los 20 segundos.
+
+Cambios:
+
+- El alta conserva PBKDF2 de 210,000 iteraciones y reutiliza el verificador protegido ya calculado. El registro idempotente conserva metadata, salt y el mismo hash fuerte; no crea un hash rápido del PIN. Un reintento verifica el PIN original incluso después de un cambio posterior. Se conservan los registros de versiones anteriores.
+- Alta y ajuste conservan su identificador en memoria al perder respuesta; los PIN no pasan a sessionStorage/localStorage. Espera de hasta 60 segundos y texto Creando usuario. El servidor devuelve JSON cuando un procesamiento de API falla, sin datos internos en la respuesta.
+- Actualizar aplicación se incorpora a Administración y a la app nativa. Sólo un administrador puede solicitar la preparación por la API local. El evento queda auditado y los reintentos no repiten la orden.
+- La tablet consulta un canal fijo de GitHub por HTTPS, descarga fuera del hilo de interfaz y verifica tamaño, SHA-256, paquete, versión creciente, compatibilidad Android y firma igual a la instalación existente. No acepta URL arbitraria ni baja de versión. El proveedor de instalación comparte sólo la APK en lectura.
+- La descarga terminada conserva metadata y se vuelve a verificar antes de instalar. Una orden administrativa permite únicamente esa instalación durante 30 minutos, sin desbloquear configuración. Android conserva la confirmación de instalación y puede pedir autorizar El Oeste como origen una vez. No se instala en silencio.
+- No se agregan comandos al panel Cloudflare; permanece de consulta. La operación no depende de Internet. La actualización inicial a 0.4.0 se instala encima para incorporar este mecanismo; mantiene datos y CA.
+
+Evidencia ejecutada:
+
+| Prueba | Resultado |
+|---|---|
+| Negocio y persistencia existentes | 148 + 42 + 11 aprobadas |
+| Gestión de usuarios y autorización de actualizaciones | 17 aprobadas: alta, PIN protegido, reintento, cambio de datos, compatibilidad anterior, permisos y último administrador |
+| Manifest y canal de descarga | 14 aprobadas: versión, tamaño, hash, origen oficial y bloqueo de redirecciones no autorizadas |
+| Cliente de solicitudes | 3 pruebas Node aprobadas: reintento conserva ID, cambio de datos usa otro y HTTP 500 no descarta el ID; sin PIN en almacenamiento de navegador |
+| Integración HTTP de ensayo | 17 aprobadas |
+| Transporte HTTPS | 8 aprobadas con CA y nombre de host validados |
+| Navegador | Alta y desactivación de empleado de ensayo observadas en la base local aislada; nueva sección de actualización renderizada; sin errores de consola. Captura privada en artifacts/usuarios-creados-0.4.jpg |
+| Android | APK y firma verificadas; instrumentación ampliada para altas y reintentos, compilada. No se ejecutó en dispositivo |
+
+Entrega de pruebas: `artifacts/El-Oeste-0.4.0-pruebas.apk`, versionCode 5, 16,796,313 bytes; SHA-256 `978f941751b9ddd8ab8e851620ed3295d3c6d31f7e1f88abf7c6c3bfc27a6404`. Se conserva la firma de actualización y se cotejan recursos web byte a byte. No contiene bases, respaldos, claves ni certificados privados.
+
+Pendiente físico: repetir el alta en la HONOR y probar una actualización posterior real con confirmación del instalador, incluido permiso de origen de instalación, notificación y recuperación del proceso. Las pruebas de escritorio no acreditan esos pasos. Se conserva el resto de pendientes físicos de las secciones anteriores.
