@@ -38,7 +38,7 @@ public final class OesteTests {
         AtomicLong time=new AtomicLong(entered);
         try(JdbcDb db=new JdbcDb(":memory:")) {
             Api api=new Api(db,time::get); api.bootstrap("admin","65432198"); Client admin=new Client(api,"admin","65432198");
-            eq(admin.get("state").getJSONArray("cards").length(),35,"35 cards");
+            eq(admin.get("state").getJSONArray("cards").length(),60,"60 cards");
             ok(admin.post("users",new JSONObject().put("name","empleado").put("password","76543210").put("role","employee")).status==200,"create employee"); Client employee=new Client(api,"empleado","76543210");
             String request=key(); JSONObject body=entry(1,"day_wash","auto"); Api.Reply e=employee.post("entry",body,request); ok(e.status==200,"entry"); String id=e.json.getString("id");
             ok(employee.post("entry",body,request).json.getString("id").equals(id),"entry idempotence"); ok(employee.post("entry",entry(2,"hourly",""),request).status==400,"different payload replay rejected");
@@ -64,7 +64,7 @@ public final class OesteTests {
             Api restored=new Api(db,time::get); eq(restored.pendingEvents().length(),5,"persistent outbox, no duplicate cash events");
             JSONArray events=api.pendingEvents(); for(int i=0;i<events.length();i++) { String remote=events.getJSONObject(i).getString("body"); ok(!remote.contains("TEST123")&&!remote.contains("vehicle")&&!remote.contains("color")&&!remote.contains("marca"),"no vehicle data in cloud events"); }
             for(int card=1;card<=30;card++) ok(employee.post("entry",entry(card,"hourly","")).status==200,"capacity entry "+card);
-            ok(admin.post("card-admin",new JSONObject().put("card",31).put("state","available").put("reason","Activación administrativa de reserva")).status==200,"activate reserve"); ok(employee.post("entry",entry(31,"hourly","")).status==400,"35 cards never allows 31st vehicle");
+            ok(admin.post("card-admin",new JSONObject().put("card",31).put("state","available").put("reason","Activación administrativa de reserva")).status==200,"activate reserve"); ok(employee.post("entry",entry(31,"hourly","")).status==400,"60 cards never allows 31st vehicle");
             eq(db.one("SELECT COUNT(*) AS n FROM stays WHERE state='active'").getInt("n"),30,"occupancy 30");
         }
         // Two different requests racing for the same card must commit only one assignment.

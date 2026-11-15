@@ -21,9 +21,9 @@ function syncVehicleFields(form) {
   }
 }
 function setVehicleFields(form, vehicle) {
-  for(const key of ['type','plate','notes']) form.elements[key].value=vehicle[key]||'';
+  form._vehicle={...vehicle};for(const key of ['type','plate','notes']) if(form.elements[key])form.elements[key].value=vehicle[key]||'';
   for(const key of ['brand','color']) {
-    const value=vehicle[key]||'', select=form.elements[key];
+    const value=vehicle[key]||'', select=form.elements[key];if(!select)continue;
     const listed=Array.from(select.options).some(o=>o.value===value);
     select.value=listed?value:'__other__'; form.elements[key+'Other'].value=listed?'':value;
   }
@@ -34,7 +34,7 @@ function setVehicleFields(form, vehicle) {
 function readVehicleFields(form) {
   syncVehicleFields(form);
   return Object.fromEntries(['type','plate','brand','color','notes'].map(key=>{
-    const field=form.elements[key];
+    const field=form.elements[key];if(!field)return [key,form._vehicle?.[key]||''];
     const value=key==='plate'&&form.elements.noPlate.checked?'':['brand','color'].includes(key)&&field.value==='__other__'?form.elements[key+'Other'].value:field.value;
     return [key,value.trim()];
   }));

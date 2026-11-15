@@ -37,7 +37,9 @@ public final class Backups {
                 if(table.equals("users")&&!row.has("display_name")) row.put("display_name",row.getString("name"));
                 Rules.require(row.length()==columns.length,"Columnas de respaldo incompatibles."); Object[] values=new Object[columns.length]; for(int j=0;j<columns.length;j++) { Rules.require(row.has(columns[j]),"Falta columna de respaldo."); Object value=row.get(columns[j]); Rules.require(value==JSONObject.NULL||value instanceof Number||value instanceof String,"Tipo de respaldo inválido."); values[j]=value==JSONObject.NULL?null:value; } db.exec(sql,values); }
         }
-        Rules.require(db.one("SELECT COUNT(*) AS n FROM cards").getInt("n")==35,"El respaldo no contiene las 35 tarjetas.");
+        int cardCount=db.one("SELECT COUNT(*) AS n FROM cards").getInt("n");
+        Rules.require(cardCount==35||cardCount==60,"El respaldo no contiene una colección completa de tarjetas.");
+        Rules.require(db.one("SELECT COUNT(*) AS n FROM cards WHERE id>=1 AND id<=?",cardCount).getInt("n")==cardCount,"Numeración de tarjetas incompatible.");
         Rules.require(db.one("SELECT COUNT(*) AS n FROM stays WHERE state='active'").getInt("n")<=30,"Ocupación inválida.");
         Rules.require(db.one("SELECT COUNT(*) AS n FROM users WHERE role='admin' AND active=1").getInt("n")>0,"El respaldo no contiene administrador activo.");
         Rules.require(db.one("SELECT COUNT(*) AS n FROM stays s LEFT JOIN cards c ON c.id=s.card_id WHERE s.state='active' AND (c.id IS NULL OR c.state NOT IN ('assigned','lost'))").getInt("n")==0,"Inconsistencia entre estancias y tarjetas.");

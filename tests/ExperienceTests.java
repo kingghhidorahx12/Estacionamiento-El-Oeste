@@ -19,7 +19,7 @@ public final class ExperienceTests {
             String id=employee.post("entry",OesteTests.entry(1,"hourly","auto")).json.getString("id");
             Api.Reply assigned=employee.post("scan",scan,key);ok(assigned.json.getString("action").equals("exit")&&assigned.json.getString("stayId").equals(id),"same scan/key reads current state after entry");
             ok(employee.post("scan",new JSONObject().put("card",1)).json.getString("action").equals("exit"),"manual fallback follows same routing");
-            ok(employee.post("scan",new JSONObject().put("card",31)).json.getString("action").equals("blocked"),"reserve not activated by scan");
+            owner.post("card-admin",new JSONObject().put("card",51).put("state","reserve").put("reason","Reserva administrativa de prueba"));ok(employee.post("scan",new JSONObject().put("card",51)).json.getString("action").equals("blocked"),"explicitly reserved card not activated by scan");
             ok(employee.post("scan",new JSONObject().put("token","fake-code")).status==400,"unknown QR rejected");
             ok(db.one("SELECT COUNT(*) AS n FROM payments").getInt("n")==0,"scan never charges");
             JSONObject cancel=new JSONObject().put("id",id).put("reason","Cliente canceló el servicio");

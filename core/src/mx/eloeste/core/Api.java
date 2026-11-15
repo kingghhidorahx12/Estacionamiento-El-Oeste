@@ -48,7 +48,7 @@ public final class Api {
         if (db.one("SELECT id FROM meta WHERE id='installation'")==null) db.exec("INSERT INTO meta VALUES('installation',?)",Security.random());
         boolean needsEpoch=db.one("SELECT id FROM meta WHERE id='eventEpoch'")==null;
         if(needsEpoch) { db.exec("INSERT INTO meta VALUES('eventEpoch',?)",Security.random()); JSONArray oldEvents=db.query("SELECT seq,body FROM outbox"); for(int i=0;i<oldEvents.length();i++) { JSONObject row=oldEvents.getJSONObject(i),event=new JSONObject(row.getString("body")); if(!event.has("epoch")) { event.put("epoch",meta("eventEpoch")); db.exec("UPDATE outbox SET body=? WHERE seq=?",event.toString(),row.getLong("seq")); } } }
-        for(int i=1;i<=35;i++) if(db.one("SELECT id FROM cards WHERE id=?",i)==null) db.exec("INSERT INTO cards VALUES(?,?,?)",i,Security.random(),i<=30?"available":"reserve");
+        db.begin();try{ensureCardInventory();db.commit();}catch(Exception e){db.rollback();throw e;}
         JSONObject existing=config();
         if(!existing.has("freeNormal")) {
             JSONObject additions=Rules.defaults();
@@ -60,6 +60,11 @@ public final class Api {
         }
         if(!config().has("normalFromStart")||!config().has("preferredFullHour")){db.begin();try{ensureHourlyPolicy();ensurePreferredPolicy();db.commit();}catch(Exception e){db.rollback();throw e;}}
         String backup=meta("lastBackup");if(!backup.isEmpty())try{backupAt=Long.parseLong(backup);}catch(NumberFormatException ignored){}
+    }
+    private void ensureCardInventory(){
+        int added=0;
+        for(int i=1;i<=60;i++) if(db.one("SELECT id FROM cards WHERE id=?",i)==null){db.exec("INSERT INTO cards VALUES(?,?,?)",i,Security.random(),"available");added++;}
+        if(added>0) audit("system","card_inventory_expanded","cards",new JSONObject().put("regular",50).put("provisional",10).put("added",added));
     }
     private void ensureHourlyPolicy(){
         JSONObject current=config();if(current.has("normalFromStart"))return;
@@ -204,13 +209,13 @@ public final class Api {
         if(path.equals("/api/restore")) {
             admin(u); Rules.require(b.optString("confirmation").equals("RESTAURAR"),"Escribe RESTAURAR para confirmar la sustitución de datos locales."); JSONObject current=db.one("SELECT salt,hash FROM users WHERE id=?",u.getString("id")); Rules.require(Security.equal(Security.password(b.getString("pin"),current.getString("salt")),current.getString("hash")),"PIN de administrador incorrecto.");
             try { Backups.restore(db,b.getJSONObject("backup"),b.getString("password")); } catch(IllegalArgumentException e) { throw e; } catch(Exception e) { throw new IllegalArgumentException("El respaldo es incompatible o está dañado. No se restauró ningún dato."); }
-            ensureHourlyPolicy();ensurePreferredPolicy();audit(actor,"backup_restored","local",new JSONObject().put("sessionsRevoked",true)); return new JSONObject().put("ok",true).put("loginRequired",true);
+            ensureCardInventory();ensureHourlyPolicy();ensurePreferredPolicy();audit(actor,"backup_restored","local",new JSONObject().put("sessionsRevoked",true)); return new JSONObject().put("ok",true).put("loginRequired",true);
         }
         if(path.equals("/api/entry")) {
             Rules.require(db.one("SELECT COUNT(*) AS n FROM stays WHERE state='active'").getInt("n")<30,"Capacidad máxima: 30 vehículos.");
             int card=b.getInt("card"); JSONObject c=db.one("SELECT * FROM cards WHERE id=?",card);
             Rules.require(c!=null && c.getString("state").equals("available"),"La tarjeta no está disponible.");
-            JSONObject v=vehicle(b.getJSONObject("vehicle")), s=b.getJSONObject("service");
+            JSONObject v=vehicle(b.getJSONObject("vehicle"),true), s=b.getJSONObject("service");
             String mode=s.getString("mode"), wash=s.optString("wash",""); JSONObject rates=config();
             Rules.require(Arrays.asList("hourly","free","temporary","day_wash","wash_only","monthly").contains(mode),"Modalidad inválida.");
             Rules.require(wash.isEmpty()||rates.getJSONObject("wash").has(wash),"Lavado sin tarifa confirmada.");
@@ -266,6 +271,7 @@ public final class Api {
             Rules.require(Rules.amount(b,"expectedTotal")==q.getLong("total"),"El importe cambió con el tiempo transcurrido. Actualiza la salida y confirma el nuevo total.");
             if(q.getBoolean("blocked")) {
                 admin(u); Rules.require(resolution!=null,"Se requiere resolución administrativa explícita.");
+                if(resolution.optBoolean("acceptBase")) resolution=new JSONObject().put("extraCents",0).put("reason","Administrador autoriza el importe base sin cargo adicional para esta salida.").put("coverageIssue",q.getString("reason"));
                 long extra=Rules.amount(resolution,"extraCents"); String why=reason(resolution);
                 String mode=new JSONObject(s.getString("service")).getString("mode");
                 // A human may explicitly decide a zero or positive adjustment; no automatic excess policy exists.
@@ -273,12 +279,14 @@ public final class Api {
                 if(extra>0) q.getJSONArray("lines").put(Rules.line(category,"Resolución administrativa · "+why,extra));
                 q.put("total",q.getLong("total")+extra); audit(actor,"administrative_resolution",s.getString("id"),new JSONObject(resolution.toString()).put("quotedAt",q.getLong("at")));
             } else Rules.require(resolution==null,"No se necesita ajuste para esta cobertura.");
-            long received=Rules.amount(b,"received"); Rules.require(received>=q.getLong("total"),"El efectivo recibido es insuficiente.");
+            boolean confirmedPayment=b.has("paymentConfirmed");
+            if(confirmedPayment) Rules.require(Boolean.TRUE.equals(b.get("paymentConfirmed")),"Confirma el pago para cerrar el servicio.");
+            long received=confirmedPayment?q.getLong("total"):Rules.amount(b,"received"); Rules.require(received>=q.getLong("total"),"El efectivo recibido es insuficiente.");
             JSONObject paid=payment(s.getString("id"),null,q.getJSONArray("lines"),actor,q.getLong("at"));
             db.exec("UPDATE stays SET state='closed',exited=? WHERE id=?",q.getLong("at"),s.getString("id"));
             db.exec("UPDATE cards SET state='available' WHERE id=? AND state='assigned'",s.getInt("card_id"));
             audit(actor,"checkout",s.getString("id"),new JSONObject().put("payment",paid.getString("id")));
-            return paid.put("received",received).put("change",received-q.getLong("total"));
+            return confirmedPayment?paid:paid.put("received",received).put("change",received-q.getLong("total"));
         }
         if(path.equals("/api/monthly")) {
             admin(u); long start=Rules.integer(b,"start"),end=Rules.integer(b,"end"); Rules.require(start>0 && end>start,"Registra inicio y fin explícitos; no se calcula un mes automáticamente.");
@@ -320,11 +328,12 @@ public final class Api {
         }
         throw new IllegalArgumentException("Operación no encontrada.");
     }
-    private JSONObject vehicle(JSONObject v) {
-        String type=v.getString("type"),plate=v.optString("plate").trim().toUpperCase(Locale.ROOT),color=v.optString("color").trim(),brand=v.optString("brand").trim(),notes=v.optString("notes").trim();
-        Rules.require(Arrays.asList("auto","moto","camioneta","van","pickup").contains(type),"Tipo inválido.");
+    private JSONObject vehicle(JSONObject v) { return vehicle(v,false); }
+    private JSONObject vehicle(JSONObject v,boolean plateOnly) {
+        String type=v.optString("type"),plate=v.optString("plate").trim().toUpperCase(Locale.ROOT),color=v.optString("color").trim(),brand=v.optString("brand").trim(),notes=v.optString("notes").trim();
+        Rules.require((plateOnly&&type.isEmpty())||Arrays.asList("auto","moto","camioneta","van","pickup").contains(type),"Tipo inválido.");
         Rules.require(plate.length()<=20 && color.length()<=50 && brand.length()<=60 && notes.length()<=500,"Descripción demasiado larga.");
-        Rules.require(!color.isEmpty(),"Confirma el color del vehículo."); Rules.require(!plate.isEmpty()||!notes.isEmpty(),"Sin placas, añade una descripción del vehículo.");
+        Rules.require(plateOnly||!color.isEmpty(),"Confirma el color del vehículo."); Rules.require(!plate.isEmpty()||!notes.isEmpty(),"Sin placas, añade una descripción del vehículo.");
         return new JSONObject().put("type",type).put("plate",plate).put("color",color).put("brand",brand).put("notes",notes);
     }
     private JSONObject active(String id) { JSONObject s=db.one("SELECT * FROM stays WHERE id=? AND state='active'",id); Rules.require(s!=null,"La estancia ya fue cerrada o no existe."); return s; }

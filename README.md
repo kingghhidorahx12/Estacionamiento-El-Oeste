@@ -8,18 +8,18 @@ El proyecto conserva el motor y la persistencia desarrollados inicialmente. El e
 
 1. Ingresar con usuario y PIN personal de 6 a 12 dígitos.
 2. **Escanear tarjeta:** si está libre abre el ingreso; si está asignada abre la salida. **Usar número** ofrece la misma identificación sin cámara. Escanear no registra entradas ni cobra por sí solo.
-3. **Ingreso:** elegir marca y color en las listas alfabéticas; «Otro» permite escribir. Tipo, placas y servicio se confirman con el vehículo. Sin placas, registrar una seña particular. El lavado toma el precio del tipo seleccionado.
-4. **Salida:** verificar físicamente el vehículo y confirmar efectivo. «Exacto» y los billetes sugeridos sólo llenan el importe; el servidor recalcula y registra un pago único al confirmar. Se muestra cambio y se vuelve al trabajo.
+3. **Ingreso:** registrar sólo la placa, manualmente o con «Leer placa con foto», y confirmar la entrada. «Servicio y opciones» conserva tiempo libre, cliente preferencial, lavados y pensiones; sólo el lavado exige seleccionar el tipo para aplicar su tarifa. Sin placas, registrar una seña particular en las opciones. No se inventan marca, color ni tipo.
+4. **Salida:** comprobar placa y tarjeta, revisar el total y pulsar **Confirmar pago y cerrar**. No se pide efectivo recibido ni se calcula cambio en esta salida. El servidor recalcula y exige volver a confirmar si el importe cambió; la transacción registra un único pago. Una cobertura pendiente sigue necesitando revisión administrativa: el administrador puede autorizar expresamente el importe base sin cargo adicional, sin teclear importe ni motivo; la decisión y la incidencia quedan auditadas.
 5. **Cancelaciones:** una entrada activa o un lavado pendiente requieren autorización de administrador y motivo. Un empleado puede pedir ese PIN dentro de la operación; no cambia de usuario. El registro se conserva en auditoría; no se borran pagos cerrados.
 6. El administrador entra a su resumen del negocio; el empleado a vehículos y escaneo. **Mi actividad** muestra únicamente sus cobros. **Equipo** concentra usuarios y permisos, conserva mayúsculas del nombre visible y permite desactivar accesos manteniendo su historial.
 
 Los desplegables se ordenan por su texto en español, con números en orden natural. Se conserva la selección y el valor real; el aviso «Selecciona…» permanece arriba. Administración distribuye sus accesos en dos columnas en celular, tres en tablet intermedia y cuatro en escritorio. Las acciones de los diálogos se agrupan por propósito y conservan objetivos táctiles de al menos 48 px.
 
-### Imprimir las 35 tarjetas
+### Imprimir las 60 tarjetas
 
-Administración → **Tarjetas** → **PDF carta** o **Imprimir**. Son cinco hojas carta verticales, ocho tarjetas por hoja, con guías de corte. Cada tarjeta mide **85.60 × 53.98 mm**, tamaño bancario ID-1. El QR ocupa la mitad izquierda; a la derecha van marca, nombre, número, únicamente tarifas normales y reglas, incluido el importe por extravío vigente en la configuración. No aparecen precios preferenciales en las tarjetas. Los cinco números de reserva no se activan al imprimir.
+Administración → **Tarjetas** → **PDF carta** o **Imprimir**. Son ocho hojas carta verticales, ocho tarjetas por hoja, con guías de corte. Cada tarjeta mide **85.60 × 53.98 mm**, tamaño bancario ID-1. El QR ocupa la mitad izquierda; a la derecha van marca, nombre, número, únicamente tarifas normales y reglas, incluido el importe por extravío vigente en la configuración. No aparecen precios preferenciales en las tarjetas. Hay 50 normales (01–50) y 10 provisionales (P01–P10). Las provisionales usan identificadores internos 51–60 y no alteran tarifas ni capacidad.
 
-En la impresora elegir **Carta y 100 % / Tamaño real**, sin «Ajustar a página»; si se imprime desde el navegador, quitar sus encabezados/pies. Los PDF mantienen QR vectoriales y cuatro módulos blancos de margen. No regeneran los códigos: utilizan los 35 de esa instalación. No compartir el PDF públicamente. Al cambiar tarifas o reemitir un QR, volver a imprimir las tarjetas afectadas.
+En la impresora elegir **Carta y 100 % / Tamaño real**, sin «Ajustar a página»; si se imprime desde el navegador, quitar sus encabezados/pies. Los PDF mantienen QR vectoriales y cuatro módulos blancos de margen. No regeneran los códigos: utilizan los 60 de esa instalación, sin cambiar los QR anteriores. No compartir el PDF públicamente. Al cambiar tarifas o reemitir un QR, volver a imprimir las tarjetas afectadas.
 
 No hay bloqueo por inactividad en las cuentas ni en el mantenimiento nativo. Continúan disponibles Cerrar sesión y Bloquear configuración de forma manual. El máximo absoluto de sesión existente de 12 horas y las autorizaciones por PIN para acciones administrativas se conservan; son independientes de la inactividad y del bloqueo de pantalla de Android.
 
@@ -33,9 +33,9 @@ Toda la configuración está en **Resumen del negocio → Periféricos**. Requie
 
 Las pruebas con transportes simulados no acreditan compatibilidad física, corte, acentos o convivencia con El Muelle. La impresión física debe verificarse con la impresora real, sin cambiar sus permisos ni la báscula de El Muelle.
 
-La captura conserva el frente para preparar placa y color y leer la marca si su nombre está escrito con claridad. Los datos son editables y se aplican al formulario de entrada; el registro se confirma con la tarjeta y el vehículo, sin cobrar automáticamente. La guía señala cofre, emblema y placa. Las fotografías permanecen sólo en RAM del cliente y no se envían a la tablet ni a terceros. Cámara/canvas se liberan al cerrar; el lector se libera al salir del ingreso, cerrar sesión u ocultar la página. Los recursos públicos del lector son locales y reutilizables; nunca se guardan fotos en la caché.
+La fotografía vuelve al lector local dedicado sólo a placas de la versión 0.7: recorte central, alfabeto de placas y modelo fast local. La segmentación se ajusta a una sola línea de placa; la guía coincide con el recorte tanto en vídeo vertical como horizontal. La lectura propuesta es editable antes de aplicarla. No intenta identificar color ni marca. Las fotografías permanecen sólo en RAM del teléfono; no se envían a la tablet, terceros o Cloudflare ni se guardan en caché. Se mantiene preparación anticipada, límite de espera, reintento, cancelación y captura manual. La rapidez y precisión de cámara real siguen pendientes de prueba física.
 
-**Límite actual:** el reconocimiento general de emblemas gráficos todavía no está resuelto. La lectura puede identificar nombres escritos como Ford o Nissan; un símbolo sin nombre requiere elegir la marca. El color es una sugerencia de las dos áreas de pintura encuadradas y puede fallar por luz, reflejos o mala alineación. No equivale a un modelo entrenado para reconocer todos los vehículos. No se presenta como identificación completa ni como validación física.
+La ampliación de tarjetas agrega únicamente los números que faltan. Conserva secretos, estados administrativos, estancias y pagos existentes. Por eso una reserva o suspensión previa sigue requiriendo la decisión del administrador. Se aceptan respaldos cifrados completos de 35 y 60 tarjetas; al restaurar uno anterior se agregan los nuevos códigos dentro de la transacción. La capacidad continúa en 30 vehículos.
 
 ## Tarifas iniciales
 
@@ -83,13 +83,13 @@ La compilación genera una APK **de pruebas**, con clave de desarrollo local exc
 
 ## Instalación en HONOR Pad 8
 
-[Descargar APK de pruebas 0.8.0 para la tablet](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/download/v0.8.0/El-Oeste-0.8.0-pruebas.apk).
+[Descargar APK de pruebas 0.9.0 para la tablet](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/download/v0.9.0/El-Oeste-0.9.0-pruebas.apk).
 
-1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.8.0 encima de la existente, conservando sus datos. No se requiere una computadora para generar certificados.
+1. Conectar la tablet al Wi-Fi del negocio e instalar la APK de pruebas 0.9.0 encima de la existente, conservando sus datos. No se requiere una computadora para generar certificados.
 2. Abrir **El Oeste · Servidor**, crear el usuario administrador y su PIN. La app prepara automáticamente una CA y un certificado únicos para esa instalación. Las claves privadas se generan dentro de AndroidKeyStore y no se exportan ni vienen compartidas dentro de la APK.
 3. Cuando indique **Activo**, pulsar **Conectar un celular**. Con el celular en el mismo Wi-Fi, escanear el QR, descargar `El-Oeste-CA.cer` y seguir la guía de autorización del teléfono. La pantalla de la tablet muestra la huella SHA-256 para comprobar que se instala su certificado correcto.
 4. Abrir la dirección `https://IP-DE-LA-TABLET:8443`, entrar con usuario/PIN y agregarla a la pantalla de inicio. Autorizar la cámara al usarla. No omitir advertencias TLS.
-5. Crear empleados desde **Resumen del negocio → Equipo** y obtener las 35 tarjetas en **Tarjetas → Descargar PDF carta**. Sus secretos nacen aleatoriamente en la instalación privada.
+5. Crear empleados desde **Resumen del negocio → Equipo** y obtener las 60 tarjetas en **Tarjetas → Descargar PDF carta**. Sus secretos nacen aleatoriamente en la instalación privada.
 
 **¿Qué se ahorró?** La instalación habitual ya no necesita crear ni importar `server.p12`, instalar JDK en otra computadora o manejar una contraseña de certificado. La CA pública se obtiene directamente de la tablet. Los certificados importados en versiones anteriores se conservan; la importación externa sigue disponible dentro de Opciones avanzadas.
 
@@ -125,7 +125,7 @@ No sincroniza placas, fotografías, marca, color, PIN, tokens QR ni notas de res
 - `web/`: PWA, recursos locales, OCR y generador de tarjetas imprimibles.
 - `tests/`: reglas, integración, seguridad y pruebas nativas separadas.
 
-Iconografía, marca y paisaje vectorial de El Oeste creados para este proyecto. No incluyen activos comerciales de El Muelle. Tipografía Manrope bajo OFL; avisos y procedencia de terceros en [THIRD_PARTY.md](THIRD_PARTY.md).
+Iconografía y marca de El Oeste creadas para este proyecto; ilustración raster generada con image_gen. No incluyen activos comerciales de El Muelle. Tipografía Manrope bajo OFL; avisos y procedencia de terceros en [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Actualización 0.3.1 · cierre de conexión desde Android
 

@@ -1,6 +1,7 @@
 'use strict';
 // Physical dimensions: ISO/IEC 7810 ID-1; letter portrait, two columns x four rows.
 const CARD_PRINT={width:85.6,height:53.98,gap:8,perPage:8,pageWidth:215.9,pageHeight:279.4};
+function cardNumber(id){return Number(id)>50?'P'+String(Number(id)-50).padStart(2,'0'):String(id).padStart(2,'0');}
 let cardPreviewObserver=null;
 function fitCardPreviews(){
  cardPreviewObserver?.disconnect();const pages=document.querySelector('.card-pages');if(!pages)return;
@@ -19,7 +20,7 @@ function cardPrintCopy(config){
 }
 function printableCard(card,config){
   const copy=cardPrintCopy(config);
-  return `<article class="bank-card" aria-label="Tarjeta ${num(card.id)}"><i class="cut tl"></i><i class="cut tr"></i><i class="cut bl"></i><i class="cut br"></i><div class="bank-card-qr"><div class="qr-code" data-token="${esc(card.token)}"></div><span>ENTRADA Y SALIDA</span></div><div class="bank-card-info"><img src="/assets/logo-horizontal.svg" alt="El Oeste · Estacionamiento"><div class="bank-card-number"><span>TARJETA</span> ${num(card.id)}</div><div class="bank-card-prices"><b>${esc(copy.hour)}</b><span>${esc(copy.free)}</span><span>${esc(copy.wash)}</span><span>${esc(copy.addon)}</span></div><div class="bank-card-rules"><b>${esc(copy.loss)}</b><span>${esc(copy.rules[0])}</span><span>${esc(copy.rules[1])}</span></div></div></article>`;
+  return `<article class="bank-card" aria-label="Tarjeta ${cardNumber(card.id)}"><i class="cut tl"></i><i class="cut tr"></i><i class="cut bl"></i><i class="cut br"></i><div class="bank-card-qr"><div class="qr-code" data-token="${esc(card.token)}"></div><span>ENTRADA Y SALIDA</span></div><div class="bank-card-info"><img src="/assets/logo-horizontal.svg" alt="El Oeste · Estacionamiento"><div class="bank-card-number"><span>${card.id>50?'PROVISIONAL':'TARJETA'}</span> ${cardNumber(card.id)}</div><div class="bank-card-prices"><b>${esc(copy.hour)}</b><span>${esc(copy.free)}</span><span>${esc(copy.wash)}</span><span>${esc(copy.addon)}</span></div><div class="bank-card-rules"><b>${esc(copy.loss)}</b><span>${esc(copy.rules[0])}</span><span>${esc(copy.rules[1])}</span></div></div></article>`;
 }
 async function createCardPdf(cards,config,logoBytes,sample=false){
   const {PDFDocument,StandardFonts,rgb,PrintScaling}=PDFLib, pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica),bold=await pdf.embedFont(StandardFonts.HelveticaBold),logo=await pdf.embedPng(logoBytes),mm=72/25.4;
@@ -37,7 +38,7 @@ async function createCardPdf(cards,config,logoBytes,sample=false){
       for(let row=0;row<count;row++)for(let col=0;col<count;col++)if(qr.isDark(row,col))page.drawRectangle({x:left+(col+4)*unit,y:bottom+side-(row+5)*unit,width:unit,height:unit,color:rgb(0,0,0)});
       center(page,sample?'MUESTRA · NO VÁLIDO':'ENTRADA Y SALIDA',x+W/4,y+5.5*mm,6.4,bold);
       const logoW=36*mm,logoH=logoW*logo.height/logo.width;page.drawImage(logo,{x:right-logoW/2,y:y+H-3*mm-logoH,width:logoW,height:logoH});
-      center(page,'TARJETA '+String(card.id).padStart(2,'0'),right,y+H-17.5*mm,13,bold);
+      center(page,(card.id>50?'PROVISIONAL ':'TARJETA ')+cardNumber(card.id),right,y+H-17.5*mm,13,bold);
       center(page,copy.hour,right,y+H-21*mm,7,bold);center(page,copy.free,right,y+H-28*mm,6.6);center(page,copy.wash,right,y+H-31.5*mm,7);center(page,copy.addon,right,y+H-35*mm,6.4);
       page.drawLine({start:{x:x+W/2+4*mm,y:y+H-37*mm},end:{x:x+W-4*mm,y:y+H-37*mm},thickness:.4,color:rule});
       center(page,copy.loss,right,y+H-41*mm,7.5,bold);center(page,copy.rules[0],right,y+H-45.5*mm,6.3);center(page,copy.rules[1],right,y+H-49*mm,6.3);
@@ -51,4 +52,4 @@ async function createCardPdf(cards,config,logoBytes,sample=false){
   return pdf.save();
 }
 async function downloadCards(){const current=await request('state'),result=await request('cards'),response=await fetch('/assets/logo-horizontal.png',{cache:'no-store'});if(!response.ok)throw new Error('No se pudo cargar el logo para impresión.');const bytes=await createCardPdf(result.cards,current.config,await response.arrayBuffer());download(new Blob([bytes],{type:'application/pdf'}),'El-Oeste-Tarjetas-Carta.pdf');toast('PDF listo · '+result.cards.length+' tarjetas · imprime en Carta al 100 %.');}
-if(typeof module!=='undefined')module.exports={CARD_PRINT,cardPrintCopy,createCardPdf};
+if(typeof module!=='undefined')module.exports={CARD_PRINT,cardNumber,cardPrintCopy,createCardPdf};
