@@ -301,3 +301,5 @@ APK final: **13,529,115 bytes**, SHA-256 `296da1fe94362128eb846e7848f6fcdf3c40fb
 
 
 Entrega 0.9.0: implementación `8c33c0e37b24b7790b94b8b43ff5ff200cebf2f0`, lista exacta de 21 archivos revisados y publicada en main. [Prerrelease oficial 0.9.0](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/tag/v0.9.0), ID 446233025, publicada tras cotejar huella/tamaño de la APK subida. Descarga pública sin sesión verificada con TLS y redirección HTTPS autorizada; idéntica byte a byte a la compilación firmada. Sólo después se prepara el manifiesto para code 10. Misma firma, paquete y CA; instalar encima y recargar el cliente. Servidores aislados de ensayo cerrados; la instalación real no fue abierta ni modificada.
+
+Cierre del canal 0.9.0: commit `dceb5e7ba298f5ca27d548e1518c052a8a73f416` cotejado con main remoto. Consulta HTTPS sin sesión de la URL exacta `UpdateManifest.SOURCE`: JSON idéntico al local, versión 0.9.0/code 10, tamaño y SHA-256 finales. Árbol de trabajo limpio antes de registrar esta evidencia. No equivale a instalación física.
