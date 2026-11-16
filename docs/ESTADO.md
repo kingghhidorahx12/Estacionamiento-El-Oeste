@@ -340,3 +340,31 @@ Evidencia privada, excluida de Git: `artifacts/cloud-final-tests.txt`, `cloud-ru
 Entrega de fuentes: commit `8d261bd8baa6d731ec50a4342080b2598f0c6d0b`, **46 archivos exactos** revisados y publicados en main del repositorio oficial; SHA remoto cotejado. Escaneo de los archivos preparados frente a las claves reales de servidor, OAuth y enlace privado: cero coincidencias. Se excluyeron `.dev`, datos, respaldos, certificados, QR operativos, node_modules y APK. El primer intento de commit/push no llegó a ejecutarse porque la revisión automática alcanzó su límite de uso; se retomó después de la hora indicada y se completó. No se repitieron pruebas de fuentes sin cambios.
 
 Comprobación de continuidad del 16/11/2026: `/health` respondió 200 con el mismo despliegue `2bc58c0c-3182-4a23-a8de-07f223289379`; `/api/setup-status` respondió 200 con `mode=owner`, `available=false`. La instalación ya contiene el administrador; el enlace privado anterior ha vencido y no se renueva innecesariamente. El acceso habitual continúa en la URL pública con usuario/PIN y el navegador autorizado. Se conserva el carácter de ensayo; este cierre no acredita migración de datos reales, corte productivo ni pruebas físicas adicionales.
+
+
+## Rediseño Cloud UI/UX · 16/11/2026
+
+Instrucción del especialista aportada por el propietario: evolución visual y operativa del cliente Cloud, conservando la arquitectura y reglas vigentes. Base remota cotejada: `b491566e0617d4aea75fedbd4c5a05a0eb33a1e4`. Implementación: **`119d86f12131a0b96235731ef76b83ea04d5a464`**.
+
+- Sistema ordenado en `cloud/style.css`, sin cargar `web/style.css` ni `web/atelier.css` en Cloud. Superficies cálidas, degradados de material, profundidad moderada, controles y estados compartidos. EO, Rye, Manrope y el PNG original se reutilizan; no se generó una ilustración nueva. Acceso/splash y colores PWA adaptados sólo en los assets Cloud.
+- Cabecera de una línea, navegación compacta y operación con escaneo único que identifica entrada/salida. Filas con placa, tarjeta, modalidad, hora, importe base/revisión y salida. Sin barra fija que tape el teclado.
+- Entrada con radios nativos accesibles en una cuadrícula; placa/foto y «Sin placas» juntos; preferencial fuera de los complementos, observación plegada y lavado contextual. Visita mensual desde contrato pagado vigente, fuera de las modalidades habituales. Preserva los datos previos del vehículo y el envío de `monthlyId`.
+- Salida con identificación, total del servidor y confirmación; incidencias separadas. No añade efectivo recibido, cambio o motivo a la salida ordinaria. La revisión administrativa de cobertura y las cancelaciones mantienen sus autorizaciones.
+- Administración con ingreso protagonista, ocupación/movimientos, desglose, módulos compactos, alertas, historial y gráfica de pagos reales; mantenimiento secundario. Equipo reorganizado, con teléfonos autorizados junto al título. Formularios, tablas, reportes, pensiones, tarjetas y periféricos reciben los componentes compartidos.
+- Submitters, API, cliente de idempotencia, Worker/D1, configuración comercial, QR y OCR se conservan. Ningún cambio en `web/`, Android/Java, `remote/`, APK, Releases o `updates/latest.json`. No se ejecutó migración ni corte productivo.
+
+Verificación focalizada final: `node cloud/scripts/assets.mjs` y `node --test cloud/tests/ui.test.mjs`, **7 pruebas aprobadas / 0 fallos** (última ejecución: 3.67 s). Comprueban el ensamblado literal del script, contratos de solicitud de entrada/salida, preferencial separado, cuatro lavados con complemento, cobertura pendiente, observación obligatoria sin placas y visita mensual. Son pruebas de controlador y serialización en VM, no pagos realizados mediante una pantalla física. No se repitieron suites de concurrencia, migración o carga.
+
+Revisión en Edge de escritorio, datos exclusivamente sintéticos, misma base y hora fija para antes/después. El escenario usa el Worker real con SQLite en memoria; no accede a D1 remota. Se cargaron 14 vistas a 390 px y se midió el resumen antes/después a 360, 390, 768, 1024 y 1280 px: sin desbordamiento del documento, errores de ejecución registrados ni campos menores de 16 px; los objetivos medidos usan la etiqueta táctil para radios/checkboxes. Esta medición no certifica accesibilidad ni equipos físicos. Capturas durante la iteración en `.dev/ui-evidence/`: `comparacion-admin-360.png`, `antes-admin-360.png`, `despues-admin-360.png`, `operacion-entrada-salida-390.png`; medidas en `layout.json`. Se observaron cabecera/resumen, operación/entrada/salida y zonas de reportes/pensiones/equipo/tarifas. **No se completó toda la inspección visual interactiva:** la herramienta de Windows devolvió timeouts repetidos en `get_window_state`, `get_window`, `type_text` y `list_windows`, incluso tras recuperar ventana y reiniciar su sesión. No se acredita el select abierto, errores/desconexión ni teclado móvil con estas capturas. Cámara/OCR físicos, Safari/iPhone, PWA instalada, impresora y lectura al sol siguen pendientes. La simulación no acredita compatibilidad física ni convivencia con la báscula.
+
+Publicado exclusivamente en [ensayo existente](https://el-oeste-ensayo.el-oeste-kingghidorahx12.workers.dev), versión **`cdcd03a9-e71d-46ba-a228-9f8d4e3b64ee`**. Wrangler informó cinco assets modificados y arranque de Worker de 2 ms; no equivale a latencia de operación. Se cotejaron por SHA-256 las cinco respuestas públicas HTTP 200 contra el build; `/api/state` anónimo mantiene HTTP 401. Sin cambio de planes, Access, autenticador, secretos o datos operativos.
+
+Huellas públicas verificadas:
+
+| Asset | SHA-256 |
+|---|---|
+| `index.html` | `aec440f202da482acdca4f19cce3894757ccc433d5b1fbb3443b1ac57b5e2e21` |
+| `app.js` | `7534c63300973ae58bc7858426ce3f44c06e7684a92f50089765d82f5ffa7495` |
+| `cloud.css` | `15a00ffa75b5f228b74a6fcd05b3f95787154dc13342b88bf94ce43d2f98ebf3` |
+| `manifest.webmanifest` | `6004ee61fecd65dcbfbc610eb3d0ca63c34af614877217fce71bbdf1a3b27e46` |
+| `sw.js` | `251d0abfc286c5e0e4d5b07812efadb85ebbab9feabd607096f135540ced0158` |
