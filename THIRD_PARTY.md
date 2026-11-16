@@ -14,6 +14,7 @@ Los recursos web se sirven desde la tablet, sin CDN en tiempo de operación.
 | JSON-java 20250517 | JSON en pruebas y compilación, licencia incluida por el proyecto. Android usa su implementación del sistema. | https://github.com/stleary/JSON-java |
 | SQLite JDBC 3.50.3.0 | Base del host de desarrollo, Apache-2.0 / BSD según componentes. No se incluye en el runtime Android. | https://github.com/xerial/sqlite-jdbc |
 | SLF4J 2.0.17 | Adaptador del host de pruebas, MIT. | https://www.slf4j.org/ |
+| @noble/hashes 2.4.0 | PBKDF2 SHA-256 compatible con los hashes anteriores, sólo en Worker. MIT; `cloud/licenses/noble-hashes-MIT.txt`. Necesario por el límite de iteraciones de la API nativa en Cloudflare público. | https://github.com/paulmillr/noble-hashes |
 
 Los scripts fijan versiones. Los avisos de los archivos originales se conservan; no se ha copiado identidad ni ilustraciones comerciales de El Muelle. Los archivos descargados deben acompañarse de los avisos de licencia en `web/vendor/licenses/` al redistribuir.
 

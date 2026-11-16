@@ -1,16 +1,18 @@
 # Estacionamiento El Oeste
 
-Aplicación local para entradas, salidas, cobros en efectivo, lavados, pensiones y tarjetas reutilizables. Servidor Android independiente: `mx.eloeste.servidor`. SQLite permanece en la tablet; la interfaz web se instala en iPhone y Android. La réplica Cloudflare es sólo de consulta.
+Aplicación para entradas, salidas, cobros en efectivo, lavados, pensiones y tarjetas reutilizables. La nueva implementación usa **Cloudflare Workers + D1 principal + Static Assets**, con HTTPS desde teléfonos o navegador. El código está en `cloud/`. El entorno de ensayo está publicado; inicialización privada, validación del proveedor y transición de datos deben completarse antes de operar. No requiere Zero Trust ni aplicación autenticadora. Consulta [despliegue y corte](docs/CLOUDFLARE.md).
+
+Java/Android (`mx.eloeste.servidor`) y la réplica de consulta `remote/` permanecen como implementación histórica, separada de cloud. No se deben operar los mismos movimientos desde ambos servidores. Esta migración no publica una APK ni cambia el canal Android.
 
 El proyecto conserva el motor y la persistencia desarrollados inicialmente. El estado de verificación y los límites de la entrega están en [docs/ESTADO.md](docs/ESTADO.md).
 
 ## Operación
 
-1. Ingresar con usuario y PIN personal de 6 a 12 dígitos.
+1. Ingresar con usuario y PIN personal de 6 a 12 dígitos. En cloud, el administrador autoriza una vez cada navegador desde **Equipo → Teléfonos autorizados**, comprobando su código de solicitud. Después se usa sólo usuario/PIN. El primer administrador se prepara mediante un enlace privado de un uso; no hay credenciales predeterminadas ni aplicación autenticadora. Si se borran las cookies o cambia el navegador, se requiere nueva autorización.
 2. **Escanear tarjeta:** si está libre abre el ingreso; si está asignada abre la salida. **Usar número** ofrece la misma identificación sin cámara. Escanear no registra entradas ni cobra por sí solo.
 3. **Ingreso:** registrar sólo la placa, manualmente o con «Leer placa con foto», y confirmar la entrada. «Servicio y opciones» conserva tiempo libre, cliente preferencial, lavados y pensiones; sólo el lavado exige seleccionar el tipo para aplicar su tarifa. Sin placas, registrar una seña particular en las opciones. No se inventan marca, color ni tipo.
 4. **Salida:** comprobar placa y tarjeta, revisar el total y pulsar **Confirmar pago y cerrar**. No se pide efectivo recibido ni se calcula cambio en esta salida. El servidor recalcula y exige volver a confirmar si el importe cambió; la transacción registra un único pago. Una cobertura pendiente sigue necesitando revisión administrativa: el administrador puede autorizar expresamente el importe base sin cargo adicional, sin teclear importe ni motivo; la decisión y la incidencia quedan auditadas.
-5. **Cancelaciones:** una entrada activa o un lavado pendiente requieren autorización de administrador y motivo. Un empleado puede pedir ese PIN dentro de la operación; no cambia de usuario. El registro se conserva en auditoría; no se borran pagos cerrados.
+5. **Cancelaciones:** una entrada activa o un lavado pendiente requieren autorización de administrador y motivo. El empleado solicita usuario/PIN del administrador dentro de la operación; no cambia de usuario. El registro se conserva en auditoría; no se borran pagos cerrados.
 6. El administrador entra a su resumen del negocio; el empleado a vehículos y escaneo. **Mi actividad** muestra únicamente sus cobros. **Equipo** concentra usuarios y permisos, conserva mayúsculas del nombre visible y permite desactivar accesos manteniendo su historial.
 
 Los desplegables se ordenan por su texto en español, con números en orden natural. Se conserva la selección y el valor real; el aviso «Selecciona…» permanece arriba. Administración distribuye sus accesos en dos columnas en celular, tres en tablet intermedia y cuatro en escritorio. Las acciones de los diálogos se agrupan por propósito y conservan objetivos táctiles de al menos 48 px.
@@ -25,7 +27,9 @@ No hay bloqueo por inactividad en las cuentas ni en el mantenimiento nativo. Con
 
 ### Configurar la impresora térmica
 
-Toda la configuración está en **Resumen del negocio → Periféricos**. Requiere el servidor Android. El formato de partida corresponde al configurador de El Muelle: **80 mm, 48 caracteres, ESC/POS, sin acentos, página 0 y ocho líneas finales**. También permite 58 mm, codificación y cortador configurables. No importa preferencias privadas de El Muelle; la IP y el dispositivo se eligen en esta instalación.
+En cloud, **Resumen del negocio → Periféricos** explica la impresión mediante el navegador y el diálogo del sistema. Tarjetas y comprobantes conservan sus datos; imprimir no vuelve a cobrar. AirPrint, servicio Android o controlador de escritorio dependen de la impresora instalada y requieren ensayo físico. Cloudflare no abre USB ni el puerto LAN de la impresora. Un puente local sería opcional y separado.
+
+**Sólo servidor Android histórico:** el formato de partida es **80 mm, 48 caracteres, ESC/POS, sin acentos, página 0 y ocho líneas finales**. También permite 58 mm, codificación y cortador configurables. No importa preferencias privadas de El Muelle; la IP y el dispositivo se eligen en esta instalación.
 
 - **LAN:** conectar impresora y tablet a la misma red, registrar la IP de la impresora y su puerto (normalmente 9100), guardar, comprobar conexión y después imprimir una prueba. La comprobación TCP no mueve papel.
 - **USB:** elegir una impresora detectada y guardar. En la tablet abrir **El Oeste · Servidor → Administración → Periféricos → Autorizar impresora USB elegida** y confirmar el diálogo de Android. Después imprimir la prueba. Se muestran interfaces de impresora, no básculas. No se fuerza la liberación de una interfaz ocupada por otra app; LAN permite evitar esa disputa si el equipo la admite.
@@ -59,9 +63,13 @@ Tiempo libre y complemento de lavado son conceptos separados; durante su cobertu
 
 La jornada **no equivale automáticamente a 24 horas**. Apertura/cierre e inicio/fin nocturno comienzan sin definir. Un administrador puede configurarlos explícitamente. Fuera de cobertura o sin horario confirmado se exige resolución administrativa justificada; no se inventan excedentes. Las mensualidades usan fechas de inicio y vencimiento explícitas, pago pendiente o confirmado, y no se renuevan automáticamente. Una pensión pagada registra cada visita y su ocupación sin crear otro ingreso por la misma mensualidad.
 
-Cada estancia conserva la versión de tarifas al ingresar. Los reportes cuentan pagos confirmados, distinguen modalidades y empleados y permiten CSV y comparación por periodo. La confirmación monetaria se bloquea si falla la conexión con la tablet; no se fabrica una cola de pagos desde el teléfono.
+Cada estancia conserva la versión de tarifas al ingresar. Los reportes cuentan pagos confirmados, distinguen modalidades y empleados y permiten CSV y comparación por periodo. En cloud, las operaciones requieren Internet. Si falla, se conserva el formulario en memoria, se ocultan importes anteriores y se consulta el resultado pendiente al reconectar. Un reintento usa el mismo identificador; no se fabrica un pago local.
 
 ## Desarrollo y pruebas en Windows
+
+Cloud (Node 24): `cd cloud`, `npm ci`, `npm test`. Las pruebas incluyen paridad con Java, transacciones concurrentes, seguridad, migración y Worker completo en workerd/D1 local. [Guía técnica](docs/CLOUDFLARE.md). El perfil Wrangler es exclusivo de El Oeste.
+
+Los siguientes comandos corresponden a la implementación Java/Android histórica:
 
 Requiere Python 3, Node para comprobar JavaScript, JDK 21 y, para APK, Android SDK 35 / Build Tools 35.0.0. Node y Python son herramientas de desarrollo; la tablet ejecuta Java nativo, sin un runtime Node adicional.
 
@@ -81,7 +89,9 @@ El primer arranque solicita usuario y PIN; no hay acceso predeterminado. La base
 
 La compilación genera una APK **de pruebas**, con clave de desarrollo local excluida de Git. Preparar una firma de distribución propia y conservarla antes de una entrega de producción. No usar ni copiar la firma de El Muelle.
 
-## Instalación en HONOR Pad 8
+## Instalación histórica en HONOR Pad 8
+
+Estas instrucciones corresponden exclusivamente al servidor local anterior. La URL cloud no necesita tablet, IP local ni instalar certificados. No iniciar ambos servidores sobre la misma operación.
 
 [Descargar APK de pruebas 0.9.0 para la tablet](https://github.com/kingghhidorahx12/Estacionamiento-El-Oeste/releases/download/v0.9.0/El-Oeste-0.9.0-pruebas.apk).
 
@@ -107,11 +117,17 @@ El servidor usa servicio en primer plano con notificación, recuperación `START
 
 ## Respaldo y restauración
 
+**Cloud:** descarga cifrada independiente desde Respaldos. Restaurar requiere validar/importar a una D1 vacía e inactiva, conciliar y autorizar el corte; el navegador no sobrescribe pagos posteriores. Procedimiento en [CLOUDFLARE.md](docs/CLOUDFLARE.md). Conservar también las claves de servidor por un medio privado separado.
+
+**Servidor Android histórico:**
+
 Administración → **Respaldo y restauración** descarga un archivo `.oeste` comprimido y cifrado con AES-256-GCM; la contraseña independiente se deriva con PBKDF2. Incluye datos, usuarios con hashes, tarifas y tarjetas. Guardarlo fuera de la tablet y conservar su contraseña por un medio privado. No incluye sesiones ni fotografías.
 
 Para restaurar: respaldar primero el estado actual, seleccionar la copia, introducir su contraseña, PIN de administrador y `RESTAURAR`. La sustitución se hace dentro de una transacción; un archivo alterado, una contraseña equivocada o inconsistencias dejan intacta la base. Se cierran las sesiones y se reconcilia la cola remota. Los certificados y el PIN nativo de configuración pertenecen a la instalación y no se transfieren mediante este respaldo. Esta versión limita el documento descomprimido a 32 MB y el archivo cifrado a 8 MB; para históricos mayores se requiere una ampliación de exportación por streaming.
 
-## Réplica remota y privacidad
+## Réplica remota histórica y privacidad
+
+Este apartado describe únicamente `remote/`. El servidor principal `cloud/` almacena los datos mínimos de vehículos necesarios para operar; las fotografías siguen sólo en RAM del teléfono.
 
 [remote/](remote/) contiene Worker, esquema D1 y panel de consulta. Configuración en [docs/SINCRONIZACION.md](docs/SINCRONIZACION.md). No se ha supuesto un despliegue ni credenciales Cloudflare. La cola local persiste eventos de pago únicos con época y secuencia, reintenta con espera creciente y sólo confirma lotes reconocidos por el Worker. Las restauraciones abren otra época de secuencia para no colisionar con pagos remotos previos. El panel indica la última confirmación y datos atrasados.
 

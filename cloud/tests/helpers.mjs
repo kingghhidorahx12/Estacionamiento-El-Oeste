@@ -1,0 +1,15 @@
+import {DatabaseSync} from 'node:sqlite';import {readFileSync} from 'node:fs';
+import {defaults} from '../lib/rules.mjs';import {password,seal,hash,random,totp} from '../lib/crypto.mjs';import {Store} from '../lib/store.mjs';
+export class SqliteD1{
+ constructor(){this.db=new DatabaseSync(':memory:');for(const name of ['0001_authority.sql','0002_devices.sql'])this.db.exec(readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));this.failAt=-1;this.failAfterCommit=false;}
+ withSession(){return this;}
+ prepare(sql){const self=this;return {args:[],bind(...args){this.args=args;return this;},execute(){const results=self.db.prepare(sql).all(...this.args);return {results,meta:{rows_read:results.length,rows_written:0}};},async all(){return this.execute();},async run(){const r=self.db.prepare(sql).run(...this.args);return {results:[],meta:{rows_read:0,rows_written:Number(r.changes)}};},async first(){return self.db.prepare(sql).get(...this.args)||null;}};}
+ async batch(stmts){this.db.exec('BEGIN');try{const result=[];for(let i=0;i<stmts.length;i++){if(i===this.failAt){this.failAt=-1;throw new Error('synthetic transient D1 failure');}result.push(stmts[i].execute());}this.db.exec('COMMIT');if(this.failAfterCommit){this.failAfterCommit=false;throw new Error('synthetic lost response');}return result;}catch(e){if(this.db.isTransaction)this.db.exec('ROLLBACK');throw e;}}
+}
+export async function seed(db,{at=1794492000000,env={DATA_KEY:'a'.repeat(64),REQUEST_KEY:'b'.repeat(64)},identity='owner@example.test'}={}){
+ const store=new Store(db);await store.run('INSERT INTO settings VALUES(1,?,?,?)',JSON.stringify(defaults()),at,'synthetic');await store.run("INSERT INTO meta VALUES('authority','cloud-test')");
+ const users=[];for(const [id,name,role,email]of [['owner','OwnerCase','admin',identity],['employee','EmpleadoUno','employee','employee@example.test'],['employee2','EmpleadoDos','employee','employee2@example.test']]){const secret='JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',salt=random(),user={id,name:name.toLowerCase(),display_name:name,role,active:1,identity:email,salt,hash:await password('65432198',salt),totp_box:role==='admin'?await seal(secret,env.DATA_KEY,'totp:'+id):null,totp_step:-1,revision:0,csrf:'csrf-'+id};await store.run('INSERT INTO users(id,name,display_name,salt,hash,role,identity,totp_box) VALUES(?,?,?,?,?,?,?,?)',id,user.name,name,salt,user.hash,role,email,user.totp_box);users.push({...user,secret});}
+ const cards=[];for(let id=1;id<=60;id++){const token=random();await store.run('INSERT INTO cards(id,token_hash,token_box,state) VALUES(?,?,?,?)',id,await hash(token),await seal(token,env.DATA_KEY,'card:'+id),'available');cards.push({id,token});}
+ for(const user of users){user.deviceToken=random();await store.run('INSERT INTO devices(id,user_id,token_hash,label,approved_by,created,expires,user_revision) VALUES(?,?,?,?,?,?,?,?)','device-'+user.id,user.id,await hash(user.deviceToken),'Teléfono sintético',users[0].id,at,at+31536000000,0);}
+ return {env:{...env,DB:db,ENVIRONMENT:'staging'},users,cards,at,otp:()=>totp(users[0].secret,Math.floor(at/30000))};
+}

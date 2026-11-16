@@ -1,0 +1,18 @@
+{
+  "name": "el-oeste-cloud",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/assets.mjs",
+    "dev": "node scripts/wrangler.mjs dev --env staging --ip 127.0.0.1 --port 8830",
+    "test": "npm run build && node scripts/wrangler.mjs deploy --env staging --dry-run --outdir ../build/cloud-worker && node --test tests/*.test.mjs",
+    "deploy:staging": "npm run build && node scripts/wrangler.mjs deploy --env staging"
+  },
+  "devDependencies": {
+    "miniflare": "5.20261116.0-beta",
+    "wrangler": "4.163.0"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.4.0"
+  }
+}

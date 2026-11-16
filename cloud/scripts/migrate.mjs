@@ -1,0 +1,14 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';import {resolve} from 'node:path';import {createHash,webcrypto} from 'node:crypto';import {gunzipSync} from 'node:zlib';
+import {convertDocument,importSql} from '../lib/migrate.mjs';import {from64} from '../lib/crypto.mjs';
+const args=Object.fromEntries(process.argv.slice(2).map(x=>x.split('='))),base=resolve('../.dev'),input=args['--input'],mappingPath=args['--mapping'],passPath=args['--password-file'],secretPath=args['--secrets'],out=resolve(args['--out']||'../.dev/cloud-import');
+if(!input||!mappingPath||!passPath||!secretPath)throw new Error('Uso: node scripts/migrate.mjs --input=RUTA --mapping=RUTA_PRIVADA --password-file=RUTA_PRIVADA --secrets=RUTA_PRIVADA --out=../.dev/cloud-import');
+if(!out.startsWith(base+'/')&&!out.startsWith(base+'\\'))throw new Error('La salida de importación debe permanecer en .dev de El Oeste.');
+const raw=await readFile(input),envelope=JSON.parse(raw),mapping=JSON.parse(await readFile(mappingPath,'utf8')),pass=(await readFile(passPath,'utf8')).trim(),env=JSON.parse(await readFile(secretPath,'utf8'));
+if(!['real','synthetic'].includes(mapping.sourceKind))throw new Error('Identifica sourceKind como real o synthetic; no se decide automáticamente.');
+if(pass.length<12||pass.length>128||raw.length>32000000)throw new Error('Contraseña o tamaño incompatible.');
+const format=envelope.format;if(!['el-oeste-backup-v1','el-oeste-cloud-v1'].includes(format))throw new Error('Formato incompatible.');
+const source=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']),key=await crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',iterations:210000,salt:from64(envelope.salt)},source,{name:'AES-GCM',length:256},false,['decrypt']);
+let bytes=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:from64(envelope.iv),additionalData:new TextEncoder().encode(format)},key,from64(envelope.data)));
+if(format==='el-oeste-backup-v1')bytes=gunzipSync(bytes,{maxOutputLength:32000000});const document=JSON.parse(new TextDecoder().decode(bytes));bytes.fill(0);
+const result=await convertDocument(document,mapping,env);await mkdir(out,{recursive:true});const sql=importSql(result.tables),digest=createHash('sha256').update(sql).digest('hex');await writeFile(resolve(out,'import.sql'),sql,{mode:0o600});await writeFile(resolve(out,'expected.json'),JSON.stringify({...result.evidence,sourceSha256:createHash('sha256').update(raw).digest('hex'),importSha256:digest,sourceKind:mapping.sourceKind,authority:'inactive'},null,2)+'\n',{mode:0o600});console.log(JSON.stringify({prepared:true,authority:'inactive',counts:result.evidence.counts,active:result.evidence.active,payments:result.evidence.payments}));
+// This command deliberately never connects to Cloudflare or activates authority.
