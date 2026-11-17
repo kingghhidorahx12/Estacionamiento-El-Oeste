@@ -368,3 +368,14 @@ Huellas públicas verificadas:
 | `cloud.css` | `15a00ffa75b5f228b74a6fcd05b3f95787154dc13342b88bf94ce43d2f98ebf3` |
 | `manifest.webmanifest` | `6004ee61fecd65dcbfbc610eb3d0ca63c34af614877217fce71bbdf1a3b27e46` |
 | `sw.js` | `251d0abfc286c5e0e4d5b07812efadb85ebbab9feabd607096f135540ced0158` |
+
+
+## Capacidad Cloud 60 · 16/11/2026
+
+A petición del propietario, el indicador «Ocupados» muestra /60. Operación y resumen administrativo calculan disponibles y porcentaje con la capacidad publicada por el servidor. El límite transaccional y la conciliación de respaldos Cloud también quedan en 60; se conserva el inventario de 50 QR normales y 10 provisionales. Android histórico no se modifica. Implementación: commit `3d767c8`.
+
+Validación focalizada: 8 pruebas UI aprobadas y una prueba de capacidad que admite 60 entradas concurrentes, rechaza la estancia 61, verifica el campo de capacidad del estado y concilia 60 estancias. Sin repetir suites completas de carga, precios o migración. Se aplicó únicamente `0003_capacity_60.sql` a la D1 de ensayo existente; la consulta remota confirmó la guarda >=60. Antes/después: una estancia, cero pagos, 60 tarjetas y una estancia activa, sin cambios en esos registros.
+
+Publicado en el mismo Worker, versión `5299c6cd-b066-4df3-b7af-75eb9aca5a56`. Cloudflare informa ahora el subdominio configurado por el propietario: [El Oeste](https://el-oeste-ensayo.eloesteestacionamiento.workers.dev). Se actualizan esa referencia y la del preparador de acceso, sin ejecutarlo ni emitir otro enlace privado. Se conserva ENVIRONMENT=staging; no se activa producción.
+
+Descargas HTTP 200 cotejadas byte a byte: `app.js` SHA-256 `c3ac6287e43decf3c523591380e484d2112d9c26235aee4e9e411427fbf6303f`; `sw.js` SHA-256 `b4acb5c24226fb2c04bde7f681cec489f8b92570cf9b79a48a3a4b52db7f647e`. Acceso anónimo a estado mantiene HTTP 401. Evidencia local en `.dev/ui-evidence/capacidad-60-publicacion.json`. No se crean nuevas estancias remotas para probar ni se acreditan pruebas físicas nuevas.

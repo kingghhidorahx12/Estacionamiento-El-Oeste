@@ -31,7 +31,7 @@ Cookies HttpOnly/Secure/SameSite, comprobación de origen/JSON, CSRF, autorizaci
 
 ## Desplegar el ensayo existente
 
-Cuenta exclusiva `54600c17d459514351dc3e040a7271cf`; Worker `el-oeste-ensayo`; D1 `d7552046-59b3-4236-b91c-ed9a904f064c`. URL: [ensayo HTTPS](https://el-oeste-ensayo.el-oeste-kingghidorahx12.workers.dev). Sin datos operativos al preparar esta entrega. No crear recursos en cuentas globales de otros proyectos.
+Cuenta exclusiva `54600c17d459514351dc3e040a7271cf`; Worker `el-oeste-ensayo`; D1 `d7552046-59b3-4236-b91c-ed9a904f064c`. URL: [ensayo HTTPS](https://el-oeste-ensayo.eloesteestacionamiento.workers.dev). Sin datos operativos al preparar esta entrega. No crear recursos en cuentas globales de otros proyectos.
 
 Desde la raíz, con Node 24:
 
