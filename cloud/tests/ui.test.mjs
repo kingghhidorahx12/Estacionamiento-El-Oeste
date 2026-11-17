@@ -16,7 +16,7 @@ const extract=name=>historical.match(new RegExp('^(?:async )?function '+name+'\\
 // Exercise the real cloud controller and unchanged submitters, including the
 // serialized request. Layout/native form validation are reviewed in a browser.
 function scene(){
- const nodes=new Map(),node=selector=>{if(!nodes.has(selector))nodes.set(selector,{hidden:false,innerHTML:'',textContent:''});return nodes.get(selector);};
+ const nodes=new Map(),node=selector=>{if(!nodes.has(selector))nodes.set(selector,{hidden:false,innerHTML:'',textContent:'',addEventListener(){}});return nodes.get(selector);};
  const fields=Object.fromEntries(['card','plate','type','notes','mode','monthlyId','preferred','wash','addon','noPlate'].map(k=>[k,{name:k,value:'',checked:false,required:false,disabled:false}]));
  fields.card.value='2';fields.plate.value='ABC123A';fields.mode.value='hourly';
  const details={open:false};fields.notes.closest=()=>details;
@@ -59,4 +59,9 @@ test('ordinary exit only confirms the server quote; pending coverage keeps admin
  s.form.dataset={id:'stay',total:'1500',blocked:'false'};await s.context.submitCheckout(s.form);assert.deepEqual(JSON.parse(JSON.stringify(s.calls[0].body)),{id:'stay',expectedTotal:1500,paymentConfirmed:true,vehicleConfirmed:true});
  stay.quote.blocked=true;stay.quote.reason='Cobertura pendiente';s.context.checkoutView('stay');assert.match(s.context.dialog.html,/type="submit" disabled/);
  s.state.role='admin';s.context.checkoutView('stay');assert.ok(!s.context.dialog.html.includes('type="submit" disabled'));s.form.dataset.blocked='true';await s.context.submitCheckout(s.form);assert.equal(s.calls[1].body.resolution.acceptBase,true);
+});
+
+test('occupancy uses the server capacity for both occupied and available places',()=>{
+ const s=scene();s.state.capacity=60;s.state.report={total:0};s.state.stays=Array.from({length:11},()=>({}));s.context.renderVehicles=()=>{};s.context.home();
+ const html=s.nodes.get('#main').innerHTML;assert.ok(html.includes('11<small> / 60</small>'));assert.ok(html.includes('<b>49</b><small>Disponibles</small>'));
 });

@@ -1,4 +1,4 @@
-import {Fault,requireThat} from './rules.mjs';
+import {Fault,requireThat,CAPACITY} from './rules.mjs';
 import {seal,open,equal} from './crypto.mjs';
 export class Store{
  constructor(db){this.db=db.withSession?db.withSession('first-primary'):db;this.queries=0;this.rowsRead=0;this.rowsWritten=0;this.duration=0;}
@@ -22,7 +22,7 @@ export class Transaction{
   // Every mutation and guard is conditional on this execution's unique ID.
   // A replay executes none of them; any failed guard rolls back the complete batch.
   const final=this.store.stmt('DELETE FROM tx_guard WHERE operation_id=?',[this.id]);
-  try{await this.store.batch([first,...this.statements,final]);}catch(error){if(/OESTE_CAPACITY/.test(String(error)))throw new Fault('Capacidad máxima: 30 vehículos.',409,'CAPACITY');if(/CHECK constraint|UNIQUE constraint|OESTE_CONFLICT/.test(String(error)))throw new Fault('La operación cambió en otro dispositivo. Actualiza y revisa antes de confirmar.',409,'CONFLICT');throw error;}
+  try{await this.store.batch([first,...this.statements,final]);}catch(error){if(/OESTE_CAPACITY/.test(String(error)))throw new Fault(`Capacidad máxima: ${CAPACITY} vehículos.`,409,'CAPACITY');if(/CHECK constraint|UNIQUE constraint|OESTE_CONFLICT/.test(String(error)))throw new Fault('La operación cambió en otro dispositivo. Actualiza y revisa antes de confirmar.',409,'CONFLICT');throw error;}
   return await operation(this.store,this.user,this.key,this.fp,this.env.DATA_KEY);
  }
 }

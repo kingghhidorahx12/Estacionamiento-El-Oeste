@@ -1,3 +1,4 @@
+export const CAPACITY=60;
 export const ZONE='America/Mexico_City';
 export class Fault extends Error{constructor(message,status=400,code='INVALID'){super(message);this.status=status;this.code=code;}}
 export function requireThat(ok,message,status=400,code='INVALID'){if(!ok)throw new Fault(message,status,code);}

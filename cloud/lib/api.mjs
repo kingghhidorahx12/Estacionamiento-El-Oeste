@@ -1,4 +1,4 @@
-import {Fault,requireThat,defaults,validateConfig,vehicle,reason,amount,integer,quote,attachCoverage,attachMonthly,line,businessDate,civilEpoch,nextDate,CATEGORIES} from './rules.mjs';
+import {Fault,requireThat,CAPACITY,defaults,validateConfig,vehicle,reason,amount,integer,quote,attachCoverage,attachMonthly,line,businessDate,civilEpoch,nextDate,CATEGORIES} from './rules.mjs';
 import {random,hash,password,seal,open,validPin,encryptBackup} from './crypto.mjs';
 import {Transaction} from './store.mjs';
 import {admin,verifyAccount} from './auth.mjs';
@@ -25,7 +25,7 @@ export class Api{
  async read(path,params){
   if(path==='state'){
    const [settings,stays,cards,monthly,report]=await Promise.all([this.config(),this.store.all("SELECT s.*,c.state AS card_state FROM stays s JOIN cards c ON c.id=s.card_id WHERE s.state='active' ORDER BY s.entered DESC"),this.store.all('SELECT id,state FROM cards ORDER BY id'),this.store.all('SELECT m.*,CASE WHEN p.id IS NULL THEN 0 ELSE 1 END AS paid FROM monthly m LEFT JOIN payments p ON p.monthly_id=m.id WHERE m.end_at>=? ORDER BY m.created DESC LIMIT 500',this.user.role==='admin'?0:this.at),this.history(businessDate(this.at),businessDate(this.at))]);
-   const authority=(await this.store.one("SELECT value FROM meta WHERE id='authority'"))?.value||'inactive';const result={deployment:'cloud',environment:this.env.ENVIRONMENT||'production',authority,serverTime:this.at,zone:'America/Mexico_City',name:this.user.display_name,login:this.user.name,role:this.user.role,csrf:this.user.csrf,config:parse(settings.body),version:settings.version,cards,stays:stays.map(s=>({...s,quote:quote(s,this.at)})),monthly,report:report.days[0]};
+   const authority=(await this.store.one("SELECT value FROM meta WHERE id='authority'"))?.value||'inactive';const result={capacity:CAPACITY,deployment:'cloud',environment:this.env.ENVIRONMENT||'production',authority,serverTime:this.at,zone:'America/Mexico_City',name:this.user.display_name,login:this.user.name,role:this.user.role,csrf:this.user.csrf,config:parse(settings.body),version:settings.version,cards,stays:stays.map(s=>({...s,quote:quote(s,this.at)})),monthly,report:report.days[0]};
    if(this.user.role==='admin')result.users=(await this.store.all('SELECT id,name,display_name,role,active,identity,totp_box FROM users ORDER BY name')).map(safeUser);
    return result;
   }
