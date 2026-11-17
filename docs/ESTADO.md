@@ -392,3 +392,21 @@ Se preservaron el identificador del Worker, la D1 `d7552046-59b3-4236-b91c-ed9a9
 El enlace privado de un uso y una hora queda exclusivamente en `.dev/iniciar-el-oeste.html` y `.dev/cloud-setup-link.txt`; no se publica en Git ni assets. Estado público de recuperación: mode=owner, available=true al verificar. El propietario debe usar sus credenciales actuales; no se emiten credenciales predeterminadas ni se exige autenticador. La expiración concreta sólo se conserva en la evidencia privada `.dev/worker-rename-final.json`.
 
 HTTP 200 y descarga de app.js idéntica al build, SHA-256 `c3ac6287e43decf3c523591380e484d2112d9c26235aee4e9e411427fbf6303f`; API de estado anónima HTTP 401. El cliente y las reglas, incluida capacidad 60, son los mismos; no se repiten pruebas de tarifas/carga ni se acreditan pruebas físicas nuevas. Se sincronizan el nombre en wrangler.jsonc y las referencias activas de acceso/despliegue; el nombre de la D1 permanece intacto. Las URLs de apartados anteriores se conservan como evidencia histórica. El cambio de dirección no supone corte productivo.
+
+
+## Cámara y controles móviles · 16/11/2026
+
+Solicitud del propietario a partir de sus capturas Android. Implementación: commit `663c18598f7cd3fd101ae4e45bfec627c9e5e96b`. El video QR recibía sus dimensiones intrínsecas porque no estaba dentro de la clase de cámara estilizada; ahora tiene clase propia, ancho contenido y altura acotada según el viewport, conservando el cuadro completo con object-fit:contain. No se cambia el decodificador, la captura OCR ni la clasificación servidor de entrada/salida. El formulario manual reserva el ancho de «Continuar» y los botones dejan de partir palabras; al abrir un modal se vuelve al inicio de su contenido. «Cliente preferencial» y su ayuda forman un grupo centrado.
+
+Por petición expresa se retiran la franja y las referencias visibles de ensayo del acceso, inicialización y errores de configuración. ENVIRONMENT=staging y las guardas internas se conservan; no se realiza migración, corte de autoridad ni modificación de datos, QR, tarifas, permisos o credenciales. Android histórico y El Muelle no se modifican.
+
+Validación focalizada: build y dry-run de Wrangler aprobados; 14 pruebas de UI/cliente aprobadas, cero fallos. Revisión en Edge Chromium sin ventana, con perfil separado y SQLite en memoria: escáner y entrada antes/después a 360, 390, 768, 1024 y 1280 px. Video sintético de dimensiones 720×1280, sin abrir cámara real. Las diez vistas nuevas medidas no desbordan horizontalmente, tienen controles medidos de al menos 48 px, campos de al menos 16 px y cero errores registrados. «Continuar» pasa de dos líneas a una a 360/390 px; el centro del grupo preferencial coincide con el centro del área visible (desviación máxima 0.008 px). Se inspeccionaron las capturas móviles de ambas comparaciones. Evidencia privada: `.dev/ui-evidence/mobile-fixes/scan-comparison.png`, `entrada-comparison.png` y `layout.json`. Esto acredita composición en navegador y simulación; no cámara física, OCR, Safari/iPhone, PWA instalada ni impresora. No se repiten suites de precios, carga, Java o Android sin cambios.
+
+Publicado en [El Oeste](https://eloeste.estacionamiento.workers.dev), Worker existente, versión `9750336e-3809-4ef9-9769-c36479744a79`. Se revisaron nueve archivos exactos antes de publicar, con cero coincidencias de los valores privados locales en el diff. Wrangler actualizó cuatro assets. Descargas de app.js, cloud.css, cloud-client.js, sw.js, index.html y manifest.webmanifest: HTTP 200 y coincidencia byte a byte con el build; API de estado anónima: HTTP 401. Versión activa cotejada mediante /health. Evidencia privada: `.dev/ui-evidence/mobile-fixes/publication.json`. Sin cambios de plan, base, Secrets, APK o Releases.
+
+| Asset modificado | SHA-256 público verificado |
+|---|---|
+| app.js | `4ebc21c76c724dc5964fe0683a02807c9407768b6f6026c10cae862a10f0e29d` |
+| cloud.css | `1a6812887a0980f317a420ccb3ef703e44ee1d2856732d25ce497f925ffc205e` |
+| cloud-client.js | `b23d0fb8b71b72850c8139c50602cdbac437ecd4323b3df9335acb90e096fec9` |
+| sw.js | `cab4dd44c6eb359679860ffcda5ba0154272978579878baf44f512037e65cd50` |
