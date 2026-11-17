@@ -2,11 +2,12 @@ import {Fault,requireThat,CAPACITY,defaults,validateConfig,vehicle,reason,amount
 import {random,hash,password,seal,open,validPin,encryptBackup} from './crypto.mjs';
 import {Transaction} from './store.mjs';
 import {admin,verifyAccount} from './auth.mjs';
+import {devices,deliveryStatus,manage} from './management.mjs';
 const parse=row=>JSON.parse(row);
 const safeUser=u=>({id:u.id,name:u.name,display_name:u.display_name,role:u.role,active:u.active,identity:u.identity});
 const requireRow=(row,message)=>{requireThat(row,message,409,'CONFLICT');return row;};
 export class Api{
- constructor(store,env,user,at){Object.assign(this,{store,env,user,at});}
+ constructor(store,env,user,at,{epoch}={}){Object.assign(this,{store,env,user,at,epoch});}
  async config(){return requireRow(await this.store.one('SELECT * FROM settings ORDER BY version DESC LIMIT 1'),'Completa la configuración inicial de El Oeste.');}
  async active(id){return requireRow(await this.store.one("SELECT * FROM stays WHERE id=? AND state='active'",id),'La estancia ya fue cerrada o no existe.');}
  async history(from,to){
@@ -26,7 +27,8 @@ export class Api{
   if(path==='state'){
    const [settings,stays,cards,monthly,report]=await Promise.all([this.config(),this.store.all("SELECT s.*,c.state AS card_state FROM stays s JOIN cards c ON c.id=s.card_id WHERE s.state='active' ORDER BY s.entered DESC"),this.store.all('SELECT id,state FROM cards ORDER BY id'),this.store.all('SELECT m.*,CASE WHEN p.id IS NULL THEN 0 ELSE 1 END AS paid FROM monthly m LEFT JOIN payments p ON p.monthly_id=m.id WHERE m.end_at>=? ORDER BY m.created DESC LIMIT 500',this.user.role==='admin'?0:this.at),this.history(businessDate(this.at),businessDate(this.at))]);
    const authority=(await this.store.one("SELECT value FROM meta WHERE id='authority'"))?.value||'inactive';const result={capacity:CAPACITY,deployment:'cloud',environment:this.env.ENVIRONMENT||'production',authority,serverTime:this.at,zone:'America/Mexico_City',name:this.user.display_name,login:this.user.name,role:this.user.role,csrf:this.user.csrf,config:parse(settings.body),version:settings.version,cards,stays:stays.map(s=>({...s,quote:quote(s,this.at)})),monthly,report:report.days[0]};
-   if(this.user.role==='admin')result.users=(await this.store.all('SELECT id,name,display_name,role,active,identity,totp_box FROM users ORDER BY name')).map(safeUser);
+   result.operationEpoch=(await this.store.one("SELECT value FROM meta WHERE id='operationEpoch'"))?.value||'0';
+   if(this.user.role==='admin')result.users=(await this.store.all('SELECT id,name,display_name,role,active,identity FROM users WHERE deleted_at IS NULL ORDER BY name')).map(safeUser);
    return result;
   }
   if(path==='history')return this.history(params.get('from'),params.get('to'));
@@ -36,7 +38,8 @@ export class Api{
   if(path==='config-history'){admin(this.user);return {versions:await this.store.all('SELECT * FROM settings ORDER BY version DESC LIMIT 100')};}
   if(path==='peripherals'){admin(this.user);return {deployment:'cloud',supported:false,browserPrint:true,message:'Imprime desde el navegador mediante una impresora disponible en este teléfono o computadora. USB y ESC/POS de red requieren un puente local opcional; Cloudflare no los controla.'};}
   if(path==='application'){admin(this.user);return {supported:false,deployment:'cloud',version:'cloud-1',message:'La aplicación se actualiza en el servidor. Recarga para obtener la versión publicada.'};}
-  if(path==='devices'){admin(this.user);return {devices:await this.store.all('SELECT d.id,d.label,d.created,d.expires,d.state,u.display_name AS name FROM devices d JOIN users u ON u.id=d.user_id ORDER BY d.created DESC LIMIT 500'),requests:await this.store.all("SELECT r.id,r.code,r.label,r.created,u.display_name AS name FROM device_requests r JOIN users u ON u.id=r.user_id WHERE r.state='pending' AND r.expires>? AND u.active=1 AND r.user_revision=u.revision ORDER BY r.created DESC LIMIT 100",this.at)};}
+  if(path==='devices')return devices(this);
+  if(path==='delivery-status')return deliveryStatus(this);
   if(path==='receipt'){
    const p=requireRow(await this.store.one('SELECT id,paid,actor,total,lines FROM payments WHERE id=?',params.get('id')),'Comprobante desconocido.');requireThat(this.user.role==='admin'||p.actor===this.user.name,'No puedes imprimir ese comprobante.',403);return {...p,lines:parse(p.lines)};
   }
@@ -57,8 +60,13 @@ export class Api{
  }
  async write(path,b,key,fp){
   let tx=this.tx(key,fp,path,{ok:true});this.guardUser(tx);
+  if(this.user.device_id)tx.guard("EXISTS(SELECT 1 FROM sessions s JOIN devices d ON d.id=s.device_id WHERE s.token=? AND s.user_id=? AND s.expires>? AND d.id=? AND d.user_id=s.user_id AND d.state='active' AND d.expires>?)",[this.user.session_token,this.user.id,this.at,this.user.device_id,this.at]);
+  const epoch=(await this.store.one("SELECT value FROM meta WHERE id='operationEpoch'"))?.value||'0';
+  requireThat((this.epoch??'0')===epoch,'La aplicación cambió desde que abriste esta pantalla. Recarga antes de continuar.',409,'STALE_STATE');
+  tx.guard("EXISTS(SELECT 1 FROM meta WHERE id='operationEpoch' AND value=?)",[epoch]);
   const authority=this.env.ENVIRONMENT==='staging'?'cloud-test':'cloud-active';
   if(!['backup','print-receipt'].includes(path))tx.guard("EXISTS(SELECT 1 FROM meta WHERE id='authority' AND value=?)",[authority]);
+  if(['user-delete','device-rename','device-deny','delivery-reset'].includes(path))return manage(this,path,b,tx);
   if(path==='entry'){
    const card=integer(b,'card'),c=requireRow(await this.store.one('SELECT * FROM cards WHERE id=?',card),'La tarjeta no está disponible.');requireThat(c.state==='available','La tarjeta no está disponible.');
    const selected=await this.config(),rates=parse(selected.body),s=b.service||{},mode=s.mode,wash=s.wash||'';let v=vehicle(b.vehicle);
@@ -105,7 +113,7 @@ export class Api{
    tx.write(`INSERT INTO users(id,name,display_name,salt,hash,role,active,identity,totp_box) SELECT ?,?,?,?,?,?,1,?,? WHERE ${tx.exists()}`,[id,name,display,salt,await password(b.password,salt),b.role,identity,totpBox]);tx.audit('user_created',name,{role:b.role});return tx.commit();
   }
   if(path==='user-update'){
-   admin(this.user);const u=requireRow(await this.store.one('SELECT * FROM users WHERE id=?',b.id),'Usuario desconocido.');requireThat(['admin','employee'].includes(b.role)&&typeof b.active==='boolean','Acceso inválido.');const display=Object.hasOwn(b,'displayName')?b.displayName.trim():u.display_name;requireThat(display&&display.length<=80,'Nombre visible: de 1 a 80 caracteres.');let identity=Object.hasOwn(b,'identity')?b.identity.trim().toLowerCase():u.identity;requireThat(!identity||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identity),'Correo inválido.');let totpBox=u.totp_box;
+   admin(this.user);const u=requireRow(await this.store.one('SELECT * FROM users WHERE id=? AND deleted_at IS NULL',b.id),'Usuario desconocido.');requireThat(['admin','employee'].includes(b.role)&&typeof b.active==='boolean','Acceso inválido.');const display=Object.hasOwn(b,'displayName')?b.displayName.trim():u.display_name;requireThat(display&&display.length<=80,'Nombre visible: de 1 a 80 caracteres.');let identity=Object.hasOwn(b,'identity')?b.identity.trim().toLowerCase():u.identity;requireThat(!identity||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identity),'Correo inválido.');let totpBox=u.totp_box;
    tx.guard('EXISTS(SELECT 1 FROM users WHERE id=? AND revision=?)',[u.id,u.revision]);if(u.role==='admin'&&(!b.active||b.role!=='admin'))tx.guard("(SELECT count(*) FROM users WHERE role='admin' AND active=1)>1");let salt=u.salt,stored=u.hash;if(b.pin){validPin(b.pin);salt=random();stored=await password(b.pin,salt);}const changed=!!b.pin||b.role!==u.role||Number(b.active)!==u.active||identity!==u.identity;
    tx.write(`UPDATE users SET display_name=?,role=?,active=?,identity=?,salt=?,hash=?,totp_box=?,revision=revision+? WHERE id=? AND ${tx.exists()}`,[display,b.role,b.active?1:0,identity,salt,stored,totpBox,changed?1:0,u.id]);if(changed)tx.write(`DELETE FROM sessions WHERE user_id=? AND ${tx.exists()}`,[u.id]);tx.audit('user_updated',u.name,{role:b.role,active:b.active,pinReset:!!b.pin});return tx.commit();
   }

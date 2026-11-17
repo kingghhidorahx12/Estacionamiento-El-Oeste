@@ -106,3 +106,14 @@ Estimación de volumen con 50 vehículos/día, dos personas y ocho horas activas
 Preparado para decidir, **sin activar**: en Paid, límite CPU inicial de 1000 ms/invocación después de medir p95; alerta de uso al 50/80/100 % del presupuesto autorizado y [límite de gasto Workers](https://developers.cloudflare.com/workers/platform/spend-management/) propuesto de US$1 adicional a la suscripción. Ese límite es de cuenta, puede interrumpir todos sus Workers y no cubre otros productos; no aplicarlo sin aprobación y revisión del alcance. Si las cuotas detienen la API, falla cerrada y conserva la consulta de resultados pendientes.
 
 Observabilidad: `METRICS=safe` emite sólo categoría de operación, estado, tiempos y contadores; está apagado normalmente. Usar Analytics para CPU y errores/cuotas, evitando registrar URL completa, cuerpos, identidad o excepciones crudas. No se ha contratado un plan ni aprobado un gasto para esta migración.
+
+
+## Controles de entrega · 17/11/2026
+
+Desde **Equipo → Dispositivos**, el administrador aprueba o rechaza solicitudes de ingreso con usuario/PIN, cotejando el código del navegador nuevo. La lista distingue «Este navegador», muestra fecha/referencia y permite nombrar o retirar otros accesos. Dos autorizaciones con el mismo nombre no acreditan que sean el mismo teléfono físico; no se fusionan automáticamente.
+
+**Equipo → Eliminar** retira el acceso del empleado u otro administrador y sus autorizaciones, conservando su identidad para los movimientos históricos. No elimina la cuenta en uso ni permite perder el último administrador activo. Para transferir la administración, crear primero el administrador del cliente, autorizar su navegador y entrar con esa cuenta antes de eliminar el acceso anterior.
+
+**Configuración y mantenimiento → Aplicación → Limpiar operaciones de prueba** muestra conteos e importe. Exige escribir LIMPIAR y el PIN de la cuenta administradora. Sólo está disponible con ENVIRONMENT=staging, autoridad cloud-test y sourceKind=synthetic. Elimina visitas, cobros, pensiones y resultados anteriores de operaciones de prueba; conserva configuración, cuentas, autorizaciones y QR. Libera tarjetas ocupadas y conserva bloqueos/revocaciones. Conserva la auditoría de administración y registra la limpieza. Los respaldos descargados fuera del servidor no se borran.
+
+Aplicar `0004_management.sql` antes de publicar el Worker que usa estos controles. La protección ordinaria de pagos sigue vigente: sólo el lote autenticado de limpieza de pruebas abre y cierra su guarda transaccional. El lote incrementa operationEpoch; las pantallas anteriores deben recargarse y no pueden volver a registrar operaciones obsoletas. No se ejecuta la limpieza al desplegar ni se activa producción o un corte de autoridad por añadir este botón.

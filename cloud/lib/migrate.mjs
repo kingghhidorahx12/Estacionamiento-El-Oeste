@@ -1,5 +1,5 @@
 import {requireThat,validateConfig,defaults,amount,CAPACITY} from './rules.mjs';import {random,hash,seal} from './crypto.mjs';
-export const TABLE_FIELDS={settings:['version','body','created','actor'],users:['id','name','display_name','salt','hash','role','active','identity','totp_box','totp_step','revision'],cards:['id','token_hash','token_box','state','revision'],stays:['id','card_id','vehicle','service','entered','actor','state','exited','revision'],monthly:['id','mode','start_at','end_at','vehicle','actor','created','revision'],payments:['id','stay_id','monthly_id','lines','total','actor','paid'],audit:['id','at','actor','action','entity','detail'],meta:['id','value']};
+export const TABLE_FIELDS={settings:['version','body','created','actor'],users:['id','name','display_name','salt','hash','role','active','identity','totp_box','totp_step','revision','deleted_at'],cards:['id','token_hash','token_box','state','revision'],stays:['id','card_id','vehicle','service','entered','actor','state','exited','revision'],monthly:['id','mode','start_at','end_at','vehicle','actor','created','revision'],payments:['id','stay_id','monthly_id','lines','total','actor','paid'],audit:['id','at','actor','action','entity','detail'],meta:['id','value']};
 export function reconcile(tables){
  const t=tables,cardIds=new Set(t.cards.map(c=>c.id)),active=t.stays.filter(s=>s.state==='active'),tokens=new Set(t.cards.map(c=>c.token_hash)),cardActive=new Set();requireThat(t.cards.length===60&&cardIds.size===60&&tokens.size===60&&Array.from({length:60},(_,i)=>i+1).every(id=>cardIds.has(id)),'Inventario incompleto.');requireThat(active.length<=CAPACITY,'Ocupación inválida.');
  for(const s of active){requireThat(!cardActive.has(s.card_id),'Tarjeta con dos estancias activas.');cardActive.add(s.card_id);requireThat(['assigned','lost'].includes(t.cards.find(c=>c.id===s.card_id)?.state),'Estancia y tarjeta inconsistentes.');}
@@ -18,7 +18,7 @@ export async function convertDocument(document,mapping,env,at=Date.now()){
   requireThat(!identity||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identity),'Correo inválido para '+u.name);
   requireThat(typeof u.salt==='string'&&/^[a-f0-9]{64}$/.test(u.hash),'Hash de usuario incompatible.');
   if(secret)totpBox=await seal(secret,env.DATA_KEY,'totp:'+u.id);
-  result.users.push({id:u.id,name:u.name,display_name:u.display_name||u.name,salt:u.salt,hash:u.hash,role:u.role,active:u.active,identity:identity.toLowerCase(),totp_box:totpBox,totp_step:-1,revision:0});
+  result.users.push({id:u.id,name:u.name,display_name:u.display_name||u.name,salt:u.salt,hash:u.hash,role:u.role,active:u.active,identity:identity.toLowerCase(),totp_box:totpBox,totp_step:-1,revision:0,deleted_at:u.deleted_at??null});
  }
  requireThat([35,60].includes(old.cards.length),'Inventario original incompleto.');
  for(const c of old.cards){requireThat(/^[a-f0-9]{64}$/.test(c.token),'QR original incompatible.');result.cards.push({id:c.id,token_hash:await hash(c.token),token_box:await seal(c.token,env.DATA_KEY,'card:'+c.id),state:c.state,revision:0});}
@@ -28,9 +28,9 @@ export async function convertDocument(document,mapping,env,at=Date.now()){
  if(!Object.hasOwn(c,'freeNormal')){const d=defaults();for(const k of ['freeNormal','freePreferred','monthlyNightStart','monthlyNightEnd'])c[k]=d[k];c.monthly=d.monthly;add();}
  if(!Object.hasOwn(c,'normalFromStart')){Object.assign(c,{ordinary:1500,preferred:1000,graceMinutes:10,normalPartial:1000,normalFromStart:true});add();}
  if(!Object.hasOwn(c,'preferredFullHour')){Object.assign(c,{preferred:1000,freePreferred:4000,preferredFullHour:true});add();}
- result.meta=(old.meta||[]).filter(x=>['installation','lastBackup'].includes(x.id)).map(x=>({id:x.id,value:x.value}));result.meta.push({id:'authority',value:'inactive'},{id:'sourceKind',value:mapping.sourceKind},{id:'importedAt',value:String(at)});
+ result.meta=(old.meta||[]).filter(x=>['installation','lastBackup'].includes(x.id)).map(x=>({id:x.id,value:x.value}));result.meta.push({id:'authority',value:'inactive'},{id:'sourceKind',value:mapping.sourceKind},{id:'importedAt',value:String(at)},{id:'operationEpoch',value:'0'});
  reconcile(result);result.audit.push({id:result.audit.reduce((n,a)=>Math.max(n,a.id),0)+1,at,actor:'system',action:'cloud_import_prepared',entity:'cloud',detail:JSON.stringify({sourceKind:mapping.sourceKind,sourceCreated:document.created})});
  return {tables:result,evidence:reconcile(result)};
 }
 const sqlValue=v=>v==null?'NULL':typeof v==='number'?(requireThat(Number.isSafeInteger(v),'Número no entero en importación.'),String(v)):"'"+String(v).replaceAll("'","''")+"'";
-export function importSql(tables){const lines=['PRAGMA defer_foreign_keys=ON;'];for(const table of ['settings','users','cards','monthly','stays','payments','audit','meta'])for(const row of tables[table]){const fields=TABLE_FIELDS[table];lines.push(`INSERT INTO ${table}(${fields.join(',')}) VALUES(${fields.map(k=>sqlValue(row[k])).join(',')});`);}return lines.join('\n')+'\n';}
+export function importSql(tables){const lines=['PRAGMA defer_foreign_keys=ON;'];for(const table of ['settings','users','cards','monthly','stays','payments','audit','meta'])for(const row of tables[table]){const fields=TABLE_FIELDS[table];lines.push(`INSERT INTO ${table}(${fields.join(',')}) VALUES(${fields.map(k=>sqlValue(row[k])).join(',')})${table==='meta'&&row.id==='operationEpoch'?' ON CONFLICT(id) DO UPDATE SET value=excluded.value':''};`);}return lines.join('\n')+'\n';}

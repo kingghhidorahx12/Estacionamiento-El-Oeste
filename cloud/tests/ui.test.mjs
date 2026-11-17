@@ -10,6 +10,7 @@ test('the final asset preserves the view source literally and compiles as a sing
  const built=readFileSync(new URL('../../build/cloud-assets/app.js',import.meta.url),'utf8');
  assert.ok(built.includes(ui),'Build must not interpret dollar sequences as replacement patterns');
  new vm.Script(built);
+ const client=readFileSync(new URL('../../build/cloud-assets/cloud-client.js',import.meta.url),'utf8');assert.ok(client.includes(readFileSync(new URL('../management.js',import.meta.url),'utf8')));new vm.Script(client);
  for(const name of ['entryView','checkoutView','adminView'])assert.equal((built.match(new RegExp('function '+name+'\\(','g'))||[]).length,1);
 });
 const extract=name=>historical.match(new RegExp('^(?:async )?function '+name+'\\([^]*?(?=\\n(?:async )?function )','m'))[0];

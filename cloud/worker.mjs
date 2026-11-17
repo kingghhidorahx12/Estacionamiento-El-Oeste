@@ -19,13 +19,13 @@ export function createWorker({clock=Date.now}={}){return {async fetch(request,en
   if(url.pathname==='/health'&&request.method==='GET'){status=200;return json({service:'el-oeste',version:'cloud-1',deploymentId:env.WORKER_VERSION?.id||'local',status:'reachable',configured:!!env.DATA_KEY&&!!env.REQUEST_KEY});}
   if(/^\/connect(?:\.html|\.js|\.css)?$/.test(url.pathname)){status=303;return new Response(null,{status:303,headers:{Location:'/',...headers}});}
   if(!isApi){requireThat(['GET','HEAD'].includes(request.method),'Método no admitido.',405);const response=await env.ASSETS.fetch(request),out=new Response(response.body,response);for(const [key,value]of Object.entries(headers))if(!['Content-Type','Cache-Control'].includes(key))out.headers.set(key,value);out.headers.set('Cache-Control',url.pathname.startsWith('/vendor/')||/\.(png|svg|ttf)$/.test(url.pathname)?'public, max-age=86400':'no-cache');status=response.status;return out;}
-  identity=requestIdentity(request);requireThat(env.DB&&env.DATA_KEY&&env.REQUEST_KEY,'Servidor de ensayo pendiente de inicialización protegida.',503,'CONFIG');store=new Store(env.DB);
+  identity=requestIdentity(request);requireThat(env.DB&&env.DATA_KEY&&env.REQUEST_KEY,'Completa la configuración inicial del servidor.',503,'CONFIG');store=new Store(env.DB);
   requireThat(['GET','POST'].includes(request.method),'Método no admitido.',405);
   if(request.method==='POST')originCheck(request);
   if(path==='setup-status'&&request.method==='GET'){status=200;return json(await setupStatus(store,env,at));}
   if(path==='setup'&&request.method==='POST'){const result=await setup(store,env,await bodyJson(request,path),at);status=200;const response=json(result.data);for(const value of result.cookies)response.headers.append('Set-Cookie',value);return response;}
   if(path==='login'&&request.method==='POST'){const result=await login(store,request,env,identity,await bodyJson(request,path),at);status=result.status||200;const response=json(result.data,status);for(const value of result.cookies)response.headers.append('Set-Cookie',value);return response;}
-  const user=await session(store,request,identity,at),api=new Api(store,env,user,at);
+  const user=await session(store,request,identity,at),api=new Api(store,env,user,at,{epoch:request.headers.get('X-Oeste-Epoch')});
   if(request.method==='GET'){
    if(path==='operation'){
     const key=url.searchParams.get('key');requireThat(/^[a-zA-Z0-9_-]{16,100}$/.test(key||''),'Identificador inválido.');const prior=await store.one('SELECT id,result_box FROM operations WHERE user_id=? AND request_key=?',user.id,key);status=200;return json(prior?{found:true,result:await expandResult(await open(prior.result_box,env.DATA_KEY,'operation:'+prior.id),store)}:{found:false});

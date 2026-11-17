@@ -13,13 +13,14 @@ html=html.replace('<link rel="stylesheet" href="/style.css">','').replace('<link
  .replace('Resumen del negocio','Resumen')
  .replace('<span>Escanear tarjeta<small>Entrada o salida automática</small></span>','<span>Escanear tarjeta<small>Entrada / Salida automática</small></span>')
  .replace('<span>Usar número<small>Sin cámara</small></span>','<span>Usar número<small>Sin cámara</small></span>');
-await writeFile(resolve(out,'index.html'),html);await cp(resolve(root,'cloud/client.js'),resolve(out,'cloud-client.js'));await cp(resolve(root,'cloud/style.css'),resolve(out,'cloud.css'));
+html=html.replace('<p id="cloud-device-approval"','<details class="gap-top"><summary>Nombrar este dispositivo · opcional</summary><label class="gap-top">Nombre del dispositivo<input name="deviceLabel" minlength="3" maxlength="80" placeholder="Ej. Celular de recepción" autocomplete="off"></label></details><p id="cloud-device-approval"');
+await writeFile(resolve(out,'index.html'),html);await writeFile(resolve(out,'cloud-client.js'),(await readFile(resolve(root,'cloud/client.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/management.js'),'utf8')));await cp(resolve(root,'cloud/style.css'),resolve(out,'cloud.css'));
 const manifest=JSON.parse(await readFile(resolve(out,'manifest.webmanifest'),'utf8'));
 manifest.theme_color='#244743';manifest.background_color='#f2eee4';
 await writeFile(resolve(out,'manifest.webmanifest'),JSON.stringify(manifest,null,2)+'\n');
 let app=await readFile(resolve(out,'app.js'),'utf8');const replace=(old,value)=>{if(!app.includes(old))throw new Error('Web source changed; review cloud adaptation: '+old.slice(0,60));app=app.replace(old,value);};
 replace('async function request(path,body) {','async function request(path,body) {\n  return cloudRequest(path,body);\n  /* Historical local transport below remains unreachable in the cloud build. */');
-replace("password:f.elements.password.value}","password:f.elements.password.value}");
+replace("password:f.elements.password.value}","password:f.elements.password.value,deviceLabel:f.elements.deviceLabel?.value||'Navegador nuevo'}");
 replace("csrf=state.csrf;$('#login')","csrf=state.csrf;cloudRecover();$('#login')");
 replace("if(render)await renderTab();","if(render)await renderTab();cloudAuthority();");
 // Match the QR video's actual DOM; it has no .camera-wrap parent.
@@ -35,7 +36,7 @@ replace("['actualizaciones','download','Actualizaciones','Preparar en la tablet'
 replace("${state.sync?.last?'Última sincronización: '+dateTime(Number(state.sync.last)):'Sin sincronización remota confirmada'} · ${state.sync?.pending||0} pagos pendientes de envío","Actualizado: ${dateTime(state.serverTime)} · Servidor principal Cloudflare");
 replace("if(state&&!document.hidden&&!busy)refresh(tab==='inicio'&&!$('#modal').open);},15000)","if(state&&!document.hidden&&!busy&&Date.now()-cloudLastAction<120000)refresh(tab==='inicio'&&!$('#modal').open);},60000)");
 replace("perifericos:peripheralsView","perifericos:cloudPeripherals");
-replace("async function updatesView(){","async function updatesView(){\n $('#main').innerHTML=heading('APLICACIÓN','El Oeste en Cloudflare','Las actualizaciones se publican en el servidor. Recarga para obtener la versión vigente.')+'<section class=\"panel\"><p>Entradas, salidas y cobros comparten una sola base principal. La tablet Android no es necesaria para esta URL.</p><button class=\"primary gap-top\" data-action=\"reload-cloud\">Recargar aplicación</button></section>';return;\n");
+replace("async function updatesView(){","async function updatesView(){return cloudApplication();\n");
 replace("async function action(name,target){","async function action(name,target){\n if(name==='reload-cloud'){location.reload();return;}\n");
 replace("async function action(name,target){","async function action(name,target){\n if(name==='cloud-devices'){await cloudDevices();return;}\n");
 replace('<summary>Agregar usuario</summary>','<summary>Agregar usuario</summary>');
