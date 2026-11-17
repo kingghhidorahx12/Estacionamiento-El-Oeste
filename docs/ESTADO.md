@@ -410,3 +410,28 @@ Publicado en [El Oeste](https://eloeste.estacionamiento.workers.dev), Worker exi
 | cloud.css | `1a6812887a0980f317a420ccb3ef703e44ee1d2856732d25ce497f925ffc205e` |
 | cloud-client.js | `b23d0fb8b71b72850c8139c50602cdbac437ecd4323b3df9335acb90e096fec9` |
 | sw.js | `cab4dd44c6eb359679860ffcda5ba0154272978579878baf44f512037e65cd50` |
+
+
+## Administración y preparación de entrega · 17/11/2026
+
+Implementación: `604129b1d533574b11076551e9dd7e8d0509979a`. Equipo distingue el navegador actual, fechas y referencias de autorización; permite aprobar/rechazar solicitudes, nombrar navegadores y retirar otros accesos. El ingreso permite dar un nombre opcional al dispositivo. No se deduce que autorizaciones con el mismo nombre sean el mismo teléfono físico.
+
+Eliminar empleados u otros administradores retira sus sesiones, dispositivos y solicitudes pendientes, preservando identidad y movimientos históricos. La baja no se puede reactivar como un usuario meramente inactivo. Protecciones de cuenta propia y último administrador, incluidas guardas transaccionales frente a operaciones concurrentes. La sesión/dispositivo autorizado también se verifica dentro del lote de escritura, no sólo antes.
+
+Aplicación ofrece limpieza manual de visitas, pagos y pensiones de prueba, con resumen, LIMPIAR y PIN del administrador. Sólo staging/cloud-test/sourceKind=synthetic. Preserva configuración, usuarios, autorizaciones y QR/bloqueos; libera tarjetas ocupadas. El permiso de borrar pagos se abre y cierra exclusivamente dentro del lote de limpieza; la inmutabilidad ordinaria permanece. El lote elimina resultados anteriores y eleva operationEpoch para bloquear reintentos/pantallas obsoletos. No se invocó esta función sobre la instalación remota ni se borraron usuarios.
+
+Pruebas focalizadas: 17 de gestión/seguridad/cliente aprobadas, ocho de UI aprobadas (ensamblado final de ambos scripts vuelto a comprobar tras distribuir botones), conversión de respaldo e importación aprobada tras incorporar la metadata de época, e integración HTTP completa en workerd/D1 local aprobada. Incluyen autorización y retiro, baja de ambos roles, conservación de pagos, carrera entre administradores, PIN sólo en memoria, rollback de limpieza fallida, repetición idempotente, rechazo de pantallas anteriores y protección de pagos después de limpiar. Se adaptó el cargador de migraciones de los tests al formato de una sentencia completa por línea de D1 exec. No se repiten suites completas de precios/carga/Java/Android sin cambios.
+
+Navegador: se revisaron los tres diálogos a 390 px con datos sintéticos y SQLite en memoria; sin desbordamiento horizontal, errores registrados, controles medidos menores de 48 px ni campos menores de 16 px. Capturas privadas `.dev/ui-evidence/management-20261117/devices.jpg`, `delete-user.jpg` y medidas `layout.json`. Los intentos de interacción CUA mediante AX, localizador y coordenadas devolvieron «Click target is no longer available»; no acreditan los envíos mediante esa interfaz. Las pruebas funcionales anteriores usan HTTP/VM/workerd. No se acreditan teléfono físico, Safari/iPhone, PWA instalada, cámara o impresora nuevos.
+
+Se revisaron 19 archivos exactos antes de publicar y se cotejaron con los valores privados locales: cero coincidencias. Se comprobó por API el Worker existente eloeste/`d5ca3e8d0f8c45ddaa90866ebb1ee08b` en la cuenta autorizada, usando exclusivamente OAuth aislado. Aplicada sólo `0004_management.sql` a la D1 existente; publicada versión `3a6c7d98-6b55-4d7e-8a8e-52395a3b4960` en [El Oeste](https://eloeste.estacionamiento.workers.dev). Health HTTP 200 y versión cotejada; estado anónimo HTTP 401. Seis descargas públicas HTTP 200 idénticas byte a byte al build.
+
+Antes/después coinciden los conteos de usuarios, dispositivos, visitas, pagos, pensiones, tarjetas, versión de tarifas y saldo. Época 0, ninguna guarda de limpieza abierta y ningún usuario eliminado. Evidencia privada `before-db.json`, `after-db.json`, `verification.json`, `worker.json` y `publication.json` dentro del mismo directorio de evidencia. No se activó producción ni corte, ni se cambiaron Secrets, planes, Android, APK, Releases o El Muelle.
+
+| Asset modificado | SHA-256 público verificado |
+|---|---|
+| app.js | `5d580e97d7837d24e080fd6c9361dc3627071ae272636997493a866af4bfceb9` |
+| cloud-client.js | `f2ef72827b4fb3d307b433d88cebb22c0b681d9f31371b4a895b8b67a0b3ece1` |
+| cloud.css | `3fa1498172ce509397e12ac19e36b43010c0a96c385c88abb12e293c79efd955` |
+| index.html | `e30cd85a64ade7007653cae4cfc06f598979090549069965a9b0e40668d09f69` |
+| sw.js | `85ea2606d71568a9057ff451ca63a8d6db73d1f20dcc5066d09e9f5baf7e52e3` |
