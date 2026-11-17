@@ -379,3 +379,16 @@ Validación focalizada: 8 pruebas UI aprobadas y una prueba de capacidad que adm
 Publicado en el mismo Worker, versión `5299c6cd-b066-4df3-b7af-75eb9aca5a56`. Cloudflare informa ahora el subdominio configurado por el propietario: [El Oeste](https://el-oeste-ensayo.eloesteestacionamiento.workers.dev). Se actualizan esa referencia y la del preparador de acceso, sin ejecutarlo ni emitir otro enlace privado. Se conserva ENVIRONMENT=staging; no se activa producción.
 
 Descargas HTTP 200 cotejadas byte a byte: `app.js` SHA-256 `c3ac6287e43decf3c523591380e484d2112d9c26235aee4e9e411427fbf6303f`; `sw.js` SHA-256 `b4acb5c24226fb2c04bde7f681cec489f8b92570cf9b79a48a3a4b52db7f647e`. Acceso anónimo a estado mantiene HTTP 401. Evidencia local en `.dev/ui-evidence/capacidad-60-publicacion.json`. No se crean nuevas estancias remotas para probar ni se acreditan pruebas físicas nuevas.
+
+
+## Dirección gratuita definitiva · 16/11/2026
+
+A petición del propietario se conserva workers.dev, sin contratar dominio ni plan. Dirección verificada: [El Oeste](https://eloeste.estacionamiento.workers.dev). El Worker existente se renombró mediante PATCH por su UUID `d5ca3e8d0f8c45ddaa90866ebb1ee08b` a `eloeste`; no se creó otro Worker, entorno ni base. La captura del propietario conservaba la ruta del nombre anterior del panel; se verificó primero que el recurso ya había pasado a `eloesteestacionamiento`.
+
+El subdominio `estacionamiento` se comprobó disponible (10032). La API de registro rechazó sustituir el subdominio existente con 409/10036; el propietario lo cambió desde el panel y confirmó el resultado. Se verificó por API el nombre final y el subdominio. La autorización OAuth aislada se renovó automáticamente con Wrangler; no se solicitó otra autorización ni se usó un token global.
+
+Se preservaron el identificador del Worker, la D1 `d7552046-59b3-4236-b91c-ed9a904f064c`, los bindings, las claves de datos y ENVIRONMENT=staging. El renombrado conservó la versión `5299c6cd-b066-4df3-b7af-75eb9aca5a56`; posteriormente sólo se renovaron BOOTSTRAP_HASH y BOOTSTRAP_UNTIL, mediante secrets-bulk parcial, para autorizar al administrador en el nuevo origen con su usuario/PIN existentes. Versión activa resultante: `acfbb611-f851-4051-b72e-c795de8b17f7`. No se ejecutó el alta/autorización del navegador ni se cambiaron usuarios, PIN, QR, estancias o pagos.
+
+El enlace privado de un uso y una hora queda exclusivamente en `.dev/iniciar-el-oeste.html` y `.dev/cloud-setup-link.txt`; no se publica en Git ni assets. Estado público de recuperación: mode=owner, available=true al verificar. El propietario debe usar sus credenciales actuales; no se emiten credenciales predeterminadas ni se exige autenticador. La expiración concreta sólo se conserva en la evidencia privada `.dev/worker-rename-final.json`.
+
+HTTP 200 y descarga de app.js idéntica al build, SHA-256 `c3ac6287e43decf3c523591380e484d2112d9c26235aee4e9e411427fbf6303f`; API de estado anónima HTTP 401. El cliente y las reglas, incluida capacidad 60, son los mismos; no se repiten pruebas de tarifas/carga ni se acreditan pruebas físicas nuevas. Se sincronizan el nombre en wrangler.jsonc y las referencias activas de acceso/despliegue; el nombre de la D1 permanece intacto. Las URLs de apartados anteriores se conservan como evidencia histórica. El cambio de dirección no supone corte productivo.

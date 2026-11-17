@@ -31,7 +31,7 @@ Cookies HttpOnly/Secure/SameSite, comprobación de origen/JSON, CSRF, autorizaci
 
 ## Desplegar el ensayo existente
 
-Cuenta exclusiva `54600c17d459514351dc3e040a7271cf`; Worker `el-oeste-ensayo`; D1 `d7552046-59b3-4236-b91c-ed9a904f064c`. URL: [ensayo HTTPS](https://el-oeste-ensayo.eloesteestacionamiento.workers.dev). Sin datos operativos al preparar esta entrega. No crear recursos en cuentas globales de otros proyectos.
+Cuenta exclusiva `54600c17d459514351dc3e040a7271cf`; Worker `eloeste`; D1 `d7552046-59b3-4236-b91c-ed9a904f064c`. URL: [ensayo HTTPS](https://eloeste.estacionamiento.workers.dev). Sin datos operativos al preparar esta entrega. No crear recursos en cuentas globales de otros proyectos.
 
 Desde la raíz, con Node 24:
 
@@ -61,7 +61,7 @@ No generar enlaces con credenciales por defecto, publicar `.dev`, ni iniciar una
 
 ## Atomicidad, reintentos y desconexión
 
-`Store` usa sesión D1 `first-primary`. Un batch contiene identificador único, guardas condicionales, pago/estancia/tarjeta y auditoría. Las guardas CHECK abortan todo el batch si cambió una revisión o autoridad. Restricciones únicas impiden dos estancias activas por tarjeta y dos pagos por estancia/contrato; un trigger limita a 30 vehículos. Los pagos cerrados no admiten UPDATE/DELETE.
+`Store` usa sesión D1 `first-primary`. Un batch contiene identificador único, guardas condicionales, pago/estancia/tarjeta y auditoría. Las guardas CHECK abortan todo el batch si cambió una revisión o autoridad. Restricciones únicas impiden dos estancias activas por tarjeta y dos pagos por estancia/contrato; un trigger limita a 60 vehículos. Los pagos cerrados no admiten UPDATE/DELETE.
 
 Timeout/503 no significa éxito ni fracaso. El cliente consulta `/api/operation` por la misma clave y usuario. Sólo confirma el resultado persistido; si no aparece, conserva la clave para reintentar. El sobre de reintento del cierre no es una cola local de pagos ni un importe que se presente como actual. Credenciales, fotos, QR y formularios de vehículo no se guardan en ese almacenamiento. Los formularios no monetarios permanecen en RAM; recargar puede perderlos.
 
