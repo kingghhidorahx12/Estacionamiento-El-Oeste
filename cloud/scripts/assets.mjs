@@ -22,6 +22,12 @@ replace('async function request(path,body) {','async function request(path,body)
 replace("password:f.elements.password.value}","password:f.elements.password.value}");
 replace("csrf=state.csrf;$('#login')","csrf=state.csrf;cloudRecover();$('#login')");
 replace("if(render)await renderTab();","if(render)await renderTab();cloudAuthority();");
+// Match the QR video's actual DOM; it has no .camera-wrap parent.
+replace('<video id="camera" class="gap-top" playsinline muted autoplay></video>','<video id="camera" class="scan-camera gap-top" playsinline muted autoplay></video>');
+replace('Apunta al QR. Una tarjeta libre abre la entrada; una asignada abre su salida.','Apunta al QR de la tarjeta.');
+replace('Lectura en este teléfono. No se registra ningún movimiento al escanear.','El movimiento se registra al confirmarlo.');
+replace('Selecciona el número</option>','Selecciona</option>');
+replace("if(!$('#modal').open)$('#modal').showModal();","if(!$('#modal').open)$('#modal').showModal();$('#modal').scrollTop=0;");
 replace("buttons.forEach(b=>{b.disabled=false;","buttons.forEach(b=>{b.disabled=document.documentElement.classList.contains('cloud-offline')&&b.type==='submit'&&['entry-form','checkout-form'].includes(f.id);");
 replace("['perifericos','print','Periféricos','Impresora USB o LAN']","['perifericos','print','Periféricos','Impresión desde este dispositivo']");
 replace('Guarda el archivo cifrado fuera de la tablet y conserva su contraseña.','Guarda el archivo cifrado fuera del servidor y conserva su contraseña.');

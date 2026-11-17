@@ -7,7 +7,7 @@ const safeUser=u=>({id:u.id,name:u.name,display_name:u.display_name,role:u.role,
 const requireRow=(row,message)=>{requireThat(row,message,409,'CONFLICT');return row;};
 export class Api{
  constructor(store,env,user,at){Object.assign(this,{store,env,user,at});}
- async config(){return requireRow(await this.store.one('SELECT * FROM settings ORDER BY version DESC LIMIT 1'),'La base de ensayo necesita inicialización protegida.');}
+ async config(){return requireRow(await this.store.one('SELECT * FROM settings ORDER BY version DESC LIMIT 1'),'Completa la configuración inicial de El Oeste.');}
  async active(id){return requireRow(await this.store.one("SELECT * FROM stays WHERE id=? AND state='active'",id),'La estancia ya fue cerrada o no existe.');}
  async history(from,to){
   requireThat(/^\d{4}-\d{2}-\d{2}$/.test(from||'')&&/^\d{4}-\d{2}-\d{2}$/.test(to||''),'Indica inicio y fin del periodo.');
