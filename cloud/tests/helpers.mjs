@@ -1,17 +1,28 @@
+
 import {DatabaseSync} from 'node:sqlite';import {readFileSync} from 'node:fs';
 import {defaults} from '../lib/rules.mjs';import {password,seal,hash,random,totp} from '../lib/crypto.mjs';import {Store} from '../lib/store.mjs';
-// D1 exec accepts one complete statement per line, unlike DatabaseSync.exec.
+
+// D1 exec requiere cada instrucción completa en una sola línea.
 export function runtimeMigrationSql(name){
- const lines=readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8').split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('--')),out=[];
- for(let i=0;i<lines.length;i++){let statement=lines[i];if(/^CREATE TRIGGER /i.test(statement)&&!statement.endsWith('END;')){while(++i<lines.length){statement+=' '+lines[i];if(lines[i]==='END;')break;}}out.push(statement);}
+ const lines=readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8').split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('--'));
+ const out=[];let statement='',trigger=false;
+ for(const part of lines){
+  if(!statement)trigger=/^CREATE\s+TRIGGER\b/i.test(part);
+  statement+=(statement?' ':'')+part;
+  const complete=trigger?/^END\s*;$/i.test(part)||(statement===part&&/\bBEGIN\b.*\bEND\s*;$/i.test(part)):part.endsWith(';');
+  if(complete){out.push(statement);statement='';trigger=false;}
+ }
+ if(statement)throw new Error('Migración SQL incompleta: '+name);
  return out.join('\n');
 }
+
 export class SqliteD1{
- constructor(){this.db=new DatabaseSync(':memory:');for(const name of ['0001_authority.sql','0002_devices.sql','0003_capacity_60.sql','0004_management.sql'])this.db.exec(readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));this.failAt=-1;this.failAfterCommit=false;}
+ constructor(){this.db=new DatabaseSync(':memory:');for(const name of ['0001_authority.sql','0002_devices.sql','0003_capacity_60.sql','0004_management.sql','0005_bathrooms.sql','0006_login_identifier.sql'])this.db.exec(readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));this.failAt=-1;this.failAfterCommit=false;}
  withSession(){return this;}
  prepare(sql){const self=this;return {args:[],bind(...args){this.args=args;return this;},execute(){const results=self.db.prepare(sql).all(...this.args);return {results,meta:{rows_read:results.length,rows_written:0}};},async all(){return this.execute();},async run(){const r=self.db.prepare(sql).run(...this.args);return {results:[],meta:{rows_read:0,rows_written:Number(r.changes)}};},async first(){return self.db.prepare(sql).get(...this.args)||null;}};}
  async batch(stmts){this.db.exec('BEGIN');try{const result=[];for(let i=0;i<stmts.length;i++){if(i===this.failAt){this.failAt=-1;throw new Error('synthetic transient D1 failure');}result.push(stmts[i].execute());}this.db.exec('COMMIT');if(this.failAfterCommit){this.failAfterCommit=false;throw new Error('synthetic lost response');}return result;}catch(e){if(this.db.isTransaction)this.db.exec('ROLLBACK');throw e;}}
 }
+
 export async function seed(db,{at=1794492000000,env={DATA_KEY:'a'.repeat(64),REQUEST_KEY:'b'.repeat(64)},identity='owner@example.test'}={}){
  const store=new Store(db);await store.run('INSERT INTO settings VALUES(1,?,?,?)',JSON.stringify(defaults()),at,'synthetic');await store.run("INSERT INTO meta VALUES('authority','cloud-test')");
  const users=[];for(const [id,name,role,email]of [['owner','OwnerCase','admin',identity],['employee','EmpleadoUno','employee','employee@example.test'],['employee2','EmpleadoDos','employee','employee2@example.test']]){const secret='JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',salt=random(),user={id,name:name.toLowerCase(),display_name:name,role,active:1,identity:email,salt,hash:await password('65432198',salt),totp_box:role==='admin'?await seal(secret,env.DATA_KEY,'totp:'+id):null,totp_step:-1,revision:0,csrf:'csrf-'+id};await store.run('INSERT INTO users(id,name,display_name,salt,hash,role,identity,totp_box) VALUES(?,?,?,?,?,?,?,?)',id,user.name,name,salt,user.hash,role,email,user.totp_box);users.push({...user,secret});}

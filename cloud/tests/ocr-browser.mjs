@@ -1,0 +1,25 @@
+// Browser integration with the real local engine and the Worker's real CSP.
+// The generated specimen and image stay in RAM. No camera or D1 is used.
+import {createServer} from 'node:http';import {readFile} from 'node:fs/promises';import {resolve,extname} from 'node:path';import {fileURLToPath} from 'node:url';import {createWorker} from '../worker.mjs';
+const base=resolve(fileURLToPath(new URL('../../build/cloud-assets/',import.meta.url))),worker=createWorker();let result={phase:'waiting'},requests=[],holds=[];
+const pixel=Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7','base64');
+const html='<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>El Oeste · Comprobación local OCR</title><link rel="stylesheet" href="/cloud.css"><script defer src="/ocr.js"></script><script defer src="/__ocr-run.js"></script><main class="workspace"><h1>Comprobación local OCR</h1><p>Imagen ficticia generada en memoria; no usa cámara ni datos de la instalación.</p><p id="status" role="status">Iniciando…</p><img src="/__wait-for-ocr" width="1" height="1" alt=""><canvas id="specimen" width="960" height="240"></canvas><pre id="outcome"></pre></main></html>';
+const runner=`(async()=>{
+ const status=document.querySelector('#status'),canvas=document.querySelector('#specimen'),ctx=canvas.getContext('2d'),csp=[];const at=performance.now();
+ addEventListener('securitypolicyviolation',e=>csp.push({directive:e.effectiveDirective,blocked:e.blockedURI}));
+ ctx.fillStyle='white';ctx.fillRect(0,0,960,240);ctx.fillStyle='black';ctx.font='bold 145px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('ABC123A',480,120);
+ const reader=new LocalPlateReader({onProgress:p=>{status.textContent=p.status+' '+Math.round((p.progress||0)*100)+'%';}});
+ let value;try{status.textContent='Preparando motor…';await reader.prepare();status.textContent='Leyendo imagen ficticia…';const data=await reader.read(canvas),found=plateCandidates(data.text);ctx.fillStyle='white';ctx.fillRect(0,0,960,240);ctx.fillStyle='black';ctx.font='bold 24px Arial';ctx.fillText('MEXICO',480,25);ctx.font='bold 125px Arial';ctx.fillText('ABC123A',480,140);const sparse=await reader.read(canvas,{pageSegMode:'11'}),second=plateCandidates(sparse.text);value={run:new URL(location.href).searchParams.get('run')||'baseline',phase:'complete',ok:found.includes('ABC123A')&&second.includes('ABC123A'),singleLine:found.includes('ABC123A'),secondaryText:second.includes('ABC123A'),candidates:found.length,elapsedMs:Math.round(performance.now()-at),csp};}catch(e){value={phase:'failed',ok:false,error:e.message,elapsedMs:Math.round(performance.now()-at),csp};}finally{reader.stop();}
+ status.textContent=value.ok?'OCR verificado':'Revisar OCR';document.querySelector('#outcome').textContent=JSON.stringify(value,null,2);await fetch('/__result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
+})();`;
+const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.wasm':'application/wasm','.gz':'application/gzip','.ttf':'font/ttf','.png':'image/png','.svg':'image/svg+xml'};
+createServer(async(req,res)=>{try{
+ if(req.headers.host!=='127.0.0.1:4846')throw Error('Host');const url=new URL(req.url,'http://'+req.headers.host);
+ if(url.pathname==='/__wait-for-ocr'){res.writeHead(200,{'Content-Type':'image/gif','Cache-Control':'no-store'});if(result.phase==='waiting'){holds.push(res);setTimeout(()=>{if(!res.writableEnded)res.end(pixel);},70000).unref();}else res.end(pixel);return;}
+ if(url.pathname==='/__result'){
+  if(req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);const raw=Buffer.concat(chunks);if(raw.length>10000)throw Error('Size');result=JSON.parse(raw);for(const held of holds.splice(0))held.end(pixel);}
+  res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({...result,assets:requests}));return;
+ }
+ const env={ASSETS:{async fetch(request){const path=new URL(request.url).pathname;if(path==='/')return new Response(html,{headers:{'Content-Type':'text/html'}});if(path==='/__ocr-run.js')return new Response(runner,{headers:{'Content-Type':'text/javascript'}});const file=resolve(base,'.'+path);if(!file.startsWith(base+'/')&&!file.startsWith(base+'\\'))return new Response('',{status:404});try{const data=await readFile(file);if(path.startsWith('/vendor/'))requests.push({path,status:200});return new Response(data,{headers:{'Content-Type':mime[extname(file)]||'application/octet-stream'}});}catch{requests.push({path,status:404});return new Response('',{status:404});}}}};
+ const response=await worker.fetch(new Request(url),env);res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
+ }catch{res.writeHead(500);res.end('Local test failed');}}).listen(4846,'127.0.0.1',()=>console.log('OCR browser fixture: http://127.0.0.1:4846/ · synthetic image only'));

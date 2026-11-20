@@ -24,7 +24,7 @@ export async function rateLimit(store,env,identity,name,at){
 }
 export async function verifyAccount(store,env,identity,name,pin,unused,at,{authorization=false}={}){
  requireThat(typeof name==='string'&&name.trim().length<=40&&typeof pin==='string'&&pin.length<=128,'Credenciales inválidas.');name=name.trim().toLowerCase();
- const bucket=await rateLimit(store,env,identity,name,at),account=await store.one('SELECT * FROM users WHERE name=?',name);
+ const bucket=await rateLimit(store,env,identity,name,at),account=await store.one('SELECT * FROM users WHERE COALESCE(login_name,name)=?',name);
  const valid=equal(await password(pin,account?.salt||'dummy-salt'),account?.hash||'0'.repeat(64));
  requireThat(valid&&account?.active&&(!authorization||account.role==='admin'),'Usuario o PIN incorrectos.',401,'CREDENTIALS');
  return {account,bucket};

@@ -14,7 +14,7 @@ html=html.replace('<link rel="stylesheet" href="/style.css">','').replace('<link
  .replace('<span>Escanear tarjeta<small>Entrada o salida automática</small></span>','<span>Escanear tarjeta<small>Entrada / Salida automática</small></span>')
  .replace('<span>Usar número<small>Sin cámara</small></span>','<span>Usar número<small>Sin cámara</small></span>');
 html=html.replace('<p id="cloud-device-approval"','<details class="gap-top"><summary>Nombrar este dispositivo · opcional</summary><label class="gap-top">Nombre del dispositivo<input name="deviceLabel" minlength="3" maxlength="80" placeholder="Ej. Celular de recepción" autocomplete="off"></label></details><p id="cloud-device-approval"');
-await writeFile(resolve(out,'index.html'),html);await writeFile(resolve(out,'cloud-client.js'),(await readFile(resolve(root,'cloud/client.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/management.js'),'utf8')));await cp(resolve(root,'cloud/style.css'),resolve(out,'cloud.css'));
+await writeFile(resolve(out,'index.html'),html);await writeFile(resolve(out,'cloud-client.js'),(await readFile(resolve(root,'cloud/client.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/management.js'),'utf8')));await cp(resolve(root,'cloud/style.css'),resolve(out,'cloud.css'));await cp(resolve(root,'cloud/ocr.js'),resolve(out,'ocr.js'));
 const manifest=JSON.parse(await readFile(resolve(out,'manifest.webmanifest'),'utf8'));
 manifest.theme_color='#244743';manifest.background_color='#f2eee4';
 await writeFile(resolve(out,'manifest.webmanifest'),JSON.stringify(manifest,null,2)+'\n');
@@ -52,12 +52,12 @@ replace("pin:f.elements.pin.value,displayName:f.elements.displayName.value}","pi
 replace("function backupsView(){","function backupsView(){");
 // Restoration is a protected migration into an empty D1, never an in-place
 // replacement of newer production payments from a browser upload.
-const a=app.indexOf('<form id="restore-form"'),b=app.indexOf('</form>',a);if(a<0||b<0)throw new Error('Restore form changed');app=app.slice(0,a)+'<section class="panel"><h3>Restauración controlada</h3><p class="gap-top">Una copia se valida primero en una D1 vacía. El corte requiere congelar la autoridad anterior y conciliar pagos posteriores. No se sobrescriben cobros desde este navegador.</p></section>'+app.slice(b+7);
+const a=app.indexOf('<form id="restore-form"'),b=app.indexOf('</form>',a);if(a<0||b<0)throw new Error('Restore form changed');app=app.slice(0,a)+'<section class="panel"><h3>Restauración controlada</h3><p class="gap-top">La recuperación de un respaldo requiere revisión administrativa para proteger los registros y cobros existentes.</p></section>'+app.slice(b+7);
 app=app.replace("function userUpdate(id){const u=state.users.find(u=>u.id===id);", "function userUpdate(id){const u=state.users.find(u=>u.id===id);").replace("Guardar acceso</button></div></form>`);}","Guardar acceso</button></div></form>`);$('#user-update-form').elements.identity.value=u.identity||'';}");
 // Replace whole view functions, never layer duplicate historical declarations.
 // Keep the submitters, delegated actions and API payloads from web unchanged.
-const ui=await readFile(resolve(root,'cloud/ui.js'),'utf8');
-for(const name of ['heading','empty','home','renderVehicles','adminView','entryView','updateEntry','checkoutView','monthlyView','usersView']){
+const ui=(await readFile(resolve(root,'cloud/ui.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/ocr-camera.js'),'utf8'));
+for(const name of ['heading','empty','home','renderVehicles','adminView','entryView','updateEntry','checkoutView','monthlyView','usersView','userUpdate','photo','capture','recognize']){
  const start=app.search(new RegExp('^(?:async )?function '+name+'\\(','m'));
  if(start<0)throw new Error('Missing historical view: '+name);
  const after=app.slice(start+1).search(/\n(?:async )?function \w+\(/);
@@ -65,6 +65,7 @@ for(const name of ['heading','empty','home','renderVehicles','adminView','entryV
  app=app.slice(0,start)+app.slice(start+1+after+1);
 }
 replace("if(!location.hash.startsWith('#setup='))refresh();",()=>ui+"\nif(!location.hash.startsWith('#setup='))refresh();");
+app=app.replaceAll('Servidor de prueba','Aplicación');
 await writeFile(resolve(out,'app.js'),app);
 async function files(dir){const result=[];for(const e of await readdir(dir,{withFileTypes:true}))e.isDirectory()?result.push(...await files(resolve(dir,e.name))):result.push(resolve(dir,e.name));return result;}
 const digest=createHash('sha256');for(const file of (await files(out)).sort())if(file!==resolve(out,'sw.js'))digest.update(file.slice(out.length)).update(await readFile(file));

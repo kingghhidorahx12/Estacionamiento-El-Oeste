@@ -18,17 +18,11 @@ async function cloudDeviceManager(){
 }
 function cloudDeleteUser(id){
  const u=state.users.find(u=>u.id===id);if(!u||u.name===state.login)return;
- openModal('Eliminar acceso',`<form class="management-form" id="delete-user-form"><p>¿Eliminar el acceso de <b>${esc(u.display_name||u.name)}</b> (${esc(u.name)})?</p><p class="note gap-top">Ya no podrá entrar y se retirarán sus dispositivos. Sus movimientos y pagos conservarán su historial.</p>${managementActions('Eliminar acceso',true)}</form>`);
+ openModal('Eliminar acceso',`<form class="management-form" id="delete-user-form"><p>¿Eliminar el acceso de <b>${esc(u.display_name||u.name)}</b> (${esc(u.login_name||u.name)})?</p><p class="note gap-top">Ya no podrá entrar y se retirarán sus dispositivos. Sus movimientos y pagos conservarán su historial.</p>${managementActions('Eliminar acceso',true)}</form>`);
  managementForm('delete-user-form',async()=>{await request('user-delete',{id,confirmed:true});closeModal();await refresh();toast('Acceso eliminado. Historial conservado.');});
 }
 async function cloudApplication(){
- const preview=await request('delivery-status');
- $('#main').innerHTML=heading('APLICACIÓN','Mantenimiento y entrega','Controles disponibles para el administrador.')+`<div class="application-grid"><section class="panel"><h2>Actualizar esta pantalla</h2><p class="gap-top">Carga la versión publicada y conserva todos los datos.</p><button class="secondary gap-top" data-action="reload-cloud">${icon('refresh')} Recargar aplicación</button></section><section class="panel"><h2>Preparar entrega al cliente</h2><p class="gap-top">Limpia visitas, cobros y pensiones de prueba. Conserva tarifas, horarios, códigos QR, usuarios y accesos.</p><p class="fine gap-top">Las tarjetas ocupadas quedan disponibles; se conservan sus bloqueos y códigos actuales.</p>${preview.allowed?`<button class="danger gap-top" data-management="delivery-open">Limpiar operaciones de prueba</button>`:`<p class="note gap-top">${esc(preview.reason)}</p>`}</section></div>`;
-}
-async function cloudDeliveryDialog(){
- const p=await request('delivery-status');if(!p.allowed){toast(p.reason);return;}const c=p.counts;
- openModal('Limpiar operaciones de prueba',`<form class="management-form" id="delivery-form"><div class="delivery-counts"><span>Visitas<b>${c.visits}</b></span><span>Activas<b>${c.active}</b></span><span>Cobros<b>${c.payments}</b></span><span>Total registrado<b>${money(c.total)}</b></span><span>Pensiones<b>${c.monthly}</b></span></div><p class="note gap-top">Se eliminarán estas operaciones y su historial de prueba. Se conservan configuración, usuarios, accesos y códigos QR. Esta acción no se puede deshacer.</p><label class="gap-top">Escribe LIMPIAR para confirmar<input name="confirmation" required pattern="LIMPIAR" autocomplete="off" autocapitalize="characters" maxlength="7"></label><label class="gap-top">Tu PIN de administrador<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{6,12}" required autocomplete="current-password" maxlength="12"></label>${managementActions('Limpiar operaciones',true)}</form>`);
- managementForm('delivery-form',async f=>{await request('delivery-reset',{snapshot:p.snapshot,confirmed:true,confirmation:f.elements.confirmation.value,pin:f.elements.pin.value});closeModal();await refresh(false);await cloudApplication();toast('Operaciones de prueba eliminadas. Configuración y accesos conservados.');});
+ $('#main').innerHTML=heading('APLICACIÓN','El Oeste','Consulta y actualiza la aplicación.')+`<section class="panel application-info"><h2>Actualizar aplicación</h2><p class="gap-top">Recarga para obtener la versión más reciente. Tus registros se conservan.</p><button class="primary gap-top" data-action="reload-cloud">${icon('refresh')} Recargar aplicación</button></section>`;
 }
 document.addEventListener('click',async event=>{
  const button=event.target.closest('[data-management],[data-user-delete]');if(!button)return;
@@ -37,7 +31,6 @@ document.addEventListener('click',async event=>{
   const {management:action,id,label,code}=button.dataset;
   if(button.dataset.userDelete){cloudDeleteUser(button.dataset.userDelete);return;}
   if(action==='devices-refresh'){await cloudDeviceManager();return;}
-  if(action==='delivery-open'){await cloudDeliveryDialog();return;}
   if(action==='deny-device'){await request('device-deny',{id});await cloudDeviceManager();toast('Solicitud rechazada.');return;}
   if(action==='approve-device'){
    openModal('Autorizar dispositivo',`<form class="management-form" id="approve-device-form"><p>Comprueba que este código aparece en el dispositivo <b>${esc(label)}</b>:</p><p class="approval-code gap-top">${esc(code)}</p>${managementActions('Coincide · Autorizar',false)}</form>`);

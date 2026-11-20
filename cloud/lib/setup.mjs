@@ -10,7 +10,7 @@ export async function setup(store,env,body,at){
   for(let offset=0;offset<rows.cards.length;offset+=12){const cards=rows.cards.slice(offset,offset+12);statements.push(store.stmt('INSERT INTO cards(id,token_hash,token_box,state,revision) VALUES '+cards.map(()=>'(?,?,?,?,?)').join(','),cards.flatMap(c=>[c.id,c.token_hash,c.token_box,c.state,c.revision])));}
   statements.push(store.stmt("INSERT INTO meta(id,value) VALUES('authority',?),('sourceKind',?)",[env.ENVIRONMENT==='staging'?'cloud-test':'inactive',body.sourceKind]));
  }else{
-  user=await store.one("SELECT * FROM users WHERE name=? AND active=1 AND role='admin'",String(body.name||'').trim().toLowerCase());requireThat(typeof body.pin==='string'&&body.pin.length<=128&&equal(await password(body.pin,user?.salt||'dummy'),user?.hash||''),'Usuario o PIN incorrectos.',403);
+  user=await store.one("SELECT * FROM users WHERE COALESCE(login_name,name)=? AND active=1 AND role='admin'",String(body.name||'').trim().toLowerCase());requireThat(typeof body.pin==='string'&&body.pin.length<=128&&equal(await password(body.pin,user?.salt||'dummy'),user?.hash||''),'Usuario o PIN incorrectos.',403);
  }
  const token=random(),device=crypto.randomUUID();statements.push(store.stmt('INSERT INTO devices(id,user_id,token_hash,label,approved_by,created,expires,user_revision) VALUES(?,?,?,?,?,?,?,?)',[device,user.id,await hash(token),'Navegador del propietario',user.id,at,at+31536000000,user.revision]));
  statements.push(store.stmt('INSERT INTO audit(at,actor,action,entity,detail) VALUES(?,?,?,?,?)',[at,user.name,first?'cloud_initialized':'owner_device_recovered',device,JSON.stringify({privateBootstrap:true,sourceKind:first?body.sourceKind:null})]));

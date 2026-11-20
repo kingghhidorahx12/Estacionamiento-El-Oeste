@@ -1,8 +1,51 @@
+
 import test from 'node:test';import assert from 'node:assert/strict';import {SqliteD1,seed} from './helpers.mjs';import {Store} from '../lib/store.mjs';import {setup,setupStatus} from '../lib/setup.mjs';import {hash,random} from '../lib/crypto.mjs';
-async function fixture(){const db=new SqliteD1(),store=new Store(db),at=Date.now(),token=random(),env={DB:db,DATA_KEY:'a'.repeat(64),REQUEST_KEY:'b'.repeat(64),ENVIRONMENT:'staging',BOOTSTRAP_HASH:await hash(token),BOOTSTRAP_UNTIL:String(at+3600000)},body={token,name:'OwnerCase',pin:'65432198',sourceKind:'synthetic',emptyConfirmed:true};return {db,store,at,env,body};}
-test('private initialization requires a valid unexpired one-use link and explicit empty synthetic installation',async()=>{const f=await fixture();try{
- await assert.rejects(setup(f.store,f.env,{...f.body,token:'0'.repeat(64)},f.at),/inválido/);await assert.rejects(setup(f.store,f.env,{...f.body,emptyConfirmed:false},f.at),/Confirma/);await assert.rejects(setup(f.store,f.env,{...f.body,sourceKind:'real'},f.at),/sintéticos/);assert.equal(f.db.db.prepare('SELECT count(*) n FROM users').get().n,0);
- const result=await setup(f.store,f.env,f.body,f.at);assert.ok(result.data.ok);assert.match(result.cookies[0],/__Host-oeste-device=.*HttpOnly; Secure/);assert.equal(f.db.db.prepare('SELECT count(*) n FROM cards').get().n,60);const u=f.db.db.prepare('SELECT * FROM users').get();assert.equal(u.display_name,'OwnerCase');assert.equal(u.totp_box,null);assert.notEqual(u.hash,f.body.pin);assert.equal((await setupStatus(f.store,f.env,f.at)).available,false);await assert.rejects(setup(f.store,f.env,f.body,f.at),/ya fue usado/);
- }finally{f.db.db.close();}});
-test('failed initialization rolls back its one-use marker and all data; same link can safely retry',async()=>{const f=await fixture();try{f.db.failAt=4;await assert.rejects(setup(f.store,f.env,f.body,f.at));for(const table of ['users','cards','settings','devices','meta'])assert.equal(f.db.db.prepare('SELECT count(*) n FROM '+table).get().n,0);assert.ok((await setup(f.store,f.env,f.body,f.at)).data.ok);}finally{f.db.db.close();}});
-test('owner browser recovery preserves existing PIN, tariff versions, QR and financial data',async()=>{const f=await fixture();try{await seed(f.db,{at:f.at,env:f.env});const tables=['users','cards','settings','stays','payments','monthly'],before=Object.fromEntries(tables.map(t=>[t,JSON.stringify(f.db.db.prepare('SELECT * FROM '+t).all())]));assert.equal((await setupStatus(f.store,f.env,f.at)).mode,'owner');assert.ok((await setup(f.store,f.env,{...f.body,emptyConfirmed:false},f.at)).data.ok);for(const t of tables)assert.equal(JSON.stringify(f.db.db.prepare('SELECT * FROM '+t).all()),before[t]);assert.equal((await setupStatus(f.store,{...f.env,BOOTSTRAP_UNTIL:String(f.at-1)},f.at)).available,false);}finally{f.db.db.close();}});
+
+async function fixture(){
+ const db=new SqliteD1(),store=new Store(db),at=Date.now(),token=random();
+ const env={DB:db,DATA_KEY:'a'.repeat(64),REQUEST_KEY:'b'.repeat(64),ENVIRONMENT:'staging',BOOTSTRAP_HASH:await hash(token),BOOTSTRAP_UNTIL:String(at+3600000)};
+ const body={token,name:'OwnerCase',pin:'65432198',sourceKind:'synthetic',emptyConfirmed:true};
+ return {db,store,at,env,body};
+}
+
+test('private initialization requires a valid unexpired one-use link and explicit empty synthetic installation',async()=>{
+ const f=await fixture();try{
+  await assert.rejects(setup(f.store,f.env,{...f.body,token:'0'.repeat(64)},f.at),/inválido/);
+  await assert.rejects(setup(f.store,f.env,{...f.body,emptyConfirmed:false},f.at),/Confirma/);
+  await assert.rejects(setup(f.store,f.env,{...f.body,sourceKind:'real'},f.at),/no permite incorporar datos operativos/);
+  assert.equal(f.db.db.prepare('SELECT count(*) n FROM users').get().n,0);
+
+  const result=await setup(f.store,f.env,f.body,f.at);
+  assert.ok(result.data.ok);
+  assert.match(result.cookies[0],/__Host-oeste-device=.*HttpOnly; Secure/);
+  assert.equal(f.db.db.prepare('SELECT count(*) n FROM cards').get().n,60);
+  const u=f.db.db.prepare('SELECT * FROM users').get();
+  assert.equal(u.display_name,'OwnerCase');
+  assert.equal(u.totp_box,null);
+  assert.notEqual(u.hash,f.body.pin);
+  assert.equal((await setupStatus(f.store,f.env,f.at)).available,false);
+  await assert.rejects(setup(f.store,f.env,f.body,f.at),/ya fue usado/);
+ }finally{f.db.db.close();}
+});
+
+test('failed initialization rolls back its one-use marker and all data; same link can safely retry',async()=>{
+ const f=await fixture();try{
+  const initialMeta=f.db.db.prepare('SELECT id,value FROM meta ORDER BY id').all();
+  f.db.failAt=4;
+  await assert.rejects(setup(f.store,f.env,f.body,f.at));
+  for(const table of ['users','cards','settings','devices'])assert.equal(f.db.db.prepare('SELECT count(*) n FROM '+table).get().n,0);
+  assert.deepEqual(f.db.db.prepare('SELECT id,value FROM meta ORDER BY id').all(),initialMeta);
+  assert.ok((await setup(f.store,f.env,f.body,f.at)).data.ok);
+ }finally{f.db.db.close();}
+});
+
+test('owner browser recovery preserves existing PIN, tariff versions, QR and financial data',async()=>{
+ const f=await fixture();try{
+  await seed(f.db,{at:f.at,env:f.env});
+  const tables=['users','cards','settings','stays','payments','monthly'],before=Object.fromEntries(tables.map(t=>[t,JSON.stringify(f.db.db.prepare('SELECT * FROM '+t).all())]));
+  assert.equal((await setupStatus(f.store,f.env,f.at)).mode,'owner');
+  assert.ok((await setup(f.store,f.env,{...f.body,emptyConfirmed:false},f.at)).data.ok);
+  for(const t of tables)assert.equal(JSON.stringify(f.db.db.prepare('SELECT * FROM '+t).all()),before[t]);
+  assert.equal((await setupStatus(f.store,{...f.env,BOOTSTRAP_UNTIL:String(f.at-1)},f.at)).available,false);
+ }finally{f.db.db.close();}
+});
