@@ -435,3 +435,30 @@ Antes/después coinciden los conteos de usuarios, dispositivos, visitas, pagos, 
 | cloud.css | `3fa1498172ce509397e12ac19e36b43010c0a96c385c88abb12e293c79efd955` |
 | index.html | `e30cd85a64ade7007653cae4cfc06f598979090549069965a9b0e40668d09f69` |
 | sw.js | `85ea2606d71568a9057ff451ca63a8d6db73d1f20dcc5066d09e9f5baf7e52e3` |
+
+
+## Acceso del administrador, interfaz final y lectura de placas · 20/11/2026
+
+Código: `32a0e28cde89a55a3d7faec58905408a5c0d8e1c` y `4c634e03d790e8a0d228c78ced1f2022a7913eb6`. Se conservaron y sincronizaron las fuentes existentes de baños y tarjetas; no se cambiaron sus tarifas ni se ejecutaron limpiezas. Se revisaron 29 archivos exactos y luego los ocho de la corrección de alias; sin claves privadas en los cambios preparados. El borrador previo `web/ocr.js` queda fuera de estos commits, sin alterarlo. Cloud sobrescribe expresamente ese asset con su propio adaptador; no depende del borrador histórico.
+
+Aplicación deja de mostrar preparación de entrega o limpieza de pruebas. Se retiran su formulario y acción de la interfaz; se conservan las guardas internas y no se presume producción. El acceso distingue nombre visible de usuario para entrar, con `login_name` separado de `users.name`, que sigue identificando a los actores históricos. Los cambios propios de usuario/PIN conservan la sesión aprobada que los guarda, cierran las otras y no amplían su duración absoluta. Se evita perder la consulta de una operación incierta tras cambiar el acceso.
+
+Se verificaron dos causas del bloqueo: el formulario anterior sólo cambiaba display_name y el identificador solicitado pertenecía también a una cuenta eliminada. `0007_current_login_uniqueness.sql` limita la unicidad a perfiles no eliminados; la autenticación excluye los eliminados. Se mantiene la cuenta original y su historial, sin borrar ni reactivar la archivada.
+
+Recuperación ejecutada únicamente sobre el administrador identificado, con guardas de id/revisión/rol, derivación PBKDF2 SHA-256/210000 y auditoría en un lote. Antes se comprobó en Cloudflare real el formato de batch y rollback mediante una clave temporal de intentos, sin operaciones de negocio. Los primeros lotes se rechazaron por la reserva del alias eliminado y revirtieron; no hubo actualización parcial. El PIN se recibió sin eco por stdin y sólo residió en memoria, sin archivo ni incorporación a Git. La respuesta real de login HTTP 202 confirmó las credenciales y que seguía siendo necesaria la aprobación de navegador. La solicitud sintética se marcó denegada; no se autorizó un navegador nuevo. Los conteos/saldos de estacionamiento y baños, pensiones, tarjetas/revisiones, dispositivos y versión de tarifas se conservaron. No se registran aquí las credenciales ni identificadores personales. Evidencia privada: `.dev/account-ocr-20261120/account-verification.json` y `before-db.json`.
+
+OCR Cloud: adaptador propio en `cloud/ocr.js` basado en el flujo local previo, conservando el modelo fast y los bundles LSTM/SIMD fijados. `cloud/ocr-camera.js` alinea el rectángulo mostrado con la imagen realmente recortada, incluida la adaptación a video vertical. Prioriza el número frente a textos secundarios sin eliminar separadores, y limita la alternativa de segmentación antes de volver a la siguiente foto. No infiere marca/color; las imágenes quedan en RAM y el usuario confirma la placa.
+
+Validación: 22 pruebas focalizadas de acceso/conversión/inicialización/UI/OCR aprobadas; nueve pruebas finales del adaptador OCR y validación del ensamblado del cliente aprobadas; integración HTTP en workerd/D1 local con cambio real de usuario/PIN aprobada. La regresión de alias eliminado también pasó después de añadir la migración 0007. No se repitieron suites completas de precios, carga o Android. Dos pruebas del OCR histórico fallaban con su borrador previo; no se usan para acreditar Cloud ni se modificó ese borrador para hacerlas pasar.
+
+Navegador aislado: motor WASM real con la CSP del Worker, imagen ficticia generada en RAM, lectura de una línea y lectura con texto secundario aprobadas, cero infracciones CSP. Resultado en `ocr-after.json`; la duración observada no es una promesa de velocidad en teléfono. Los recursos públicos del motor y modelo se cotejaron con los locales; su compresión no presentó diferencias. La revisión automática rechazó leer una ventana personal de Edge por posible exposición de otras pestañas; se usó un perfil de prueba aislado. No se acredita cámara física, precisión real de placas, HONOR/iPhone/Safari, PWA instalada ni impresora.
+
+Aplicadas sólo las migraciones pendientes 0006 y 0007 a la D1 existente; 0005 de baños ya estaba aplicada. Worker/UUID y cuenta autorizados conservados, OAuth exclusivamente aislado. Versión final `afd6e85b-439a-4321-8c91-ddb7220e6605` en [El Oeste](https://eloeste.estacionamiento.workers.dev). Health HTTP 200 con versión cotejada, estado anónimo HTTP 401. Nueve assets públicos HTTP 200 idénticos al build; la última publicación de backend no cambió assets. Evidencia en `publication.json`, `ocr-engine.json`, `ocr-after.json` y `worker.json` del mismo directorio privado. Sin cambios de planes, Secrets, El Muelle, certificados, APK o Releases; sin corte de autoridad.
+
+| Asset modificado | SHA-256 público verificado |
+|---|---|
+| app.js | `f5af54b0fe24c7184b0ac5f4841ba0b1aa476e707d7610b06943d039c2755c65` |
+| cloud-client.js | `f70bc8349e4fed8cdf9a9bac67501c96b1a8d0a59b6f41ab6881d5548d53435f` |
+| cloud.css | `9f1ea78757b3c6282ea61b7537cab3834764ee96978862db9ddd344cc4ab3a26` |
+| ocr.js | `909c6a0b95d5538de7c5da25efce6b636190543345818760c2d5d95e8733e71d` |
+| sw.js | `b8d7a74a1812604b8c9e0b0e7a7ef1ce99cc90dce212d71d1e45b292505f6539` |
