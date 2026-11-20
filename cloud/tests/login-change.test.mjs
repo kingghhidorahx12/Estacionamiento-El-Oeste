@@ -15,5 +15,9 @@ test('changing the login and PIN preserves the current trusted session, closes o
   assert.equal((await call('login',{body:{name:owner.name,password:'65432198'}})).status,401);
   assert.equal((await call('login',{body:{name:'MANAGERNEW',password:'97531864'}})).status,200);
   assert.equal((await call('user-update',{auth:a,body:{...body,loginName:f.users[1].name}})).data.code,'LOGIN_TAKEN');
+  assert.equal((await call('user-delete',{auth:a,body:{id:f.users[1].id,confirmed:true}})).status,200);
+  assert.equal((await call('user-update',{auth:a,body:{...body,loginName:f.users[1].name}})).status,200);
+  const reused=await call('login',{body:{name:f.users[1].name,password:'97531864'}});assert.equal(reused.status,200);assert.equal(reused.data.role,'admin');
+  const archived=db.db.prepare('SELECT name,active,deleted_at FROM users WHERE id=?').get(f.users[1].id);assert.equal(archived.name,f.users[1].name);assert.equal(archived.active,0);assert.ok(archived.deleted_at);
  }finally{db.db.close();}
 });

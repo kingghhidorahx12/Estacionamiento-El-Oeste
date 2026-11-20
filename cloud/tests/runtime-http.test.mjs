@@ -5,7 +5,7 @@ test('full Worker in workerd: private owner setup, PIN, browser approval, concur
  const privateToken='c'.repeat(64),mf=new Miniflare(convertV4MiniflareOptions({name:'oeste-http',compatibilityDate:'2026-11-16',modules:true,script:readFileSync(new URL('../../build/cloud-worker/worker.js',import.meta.url),'utf8'),d1Databases:{DB:'runtime-http'},bindings:{DATA_KEY:'a'.repeat(64),REQUEST_KEY:'b'.repeat(64),BOOTSTRAP_HASH:await hash(privateToken),BOOTSTRAP_UNTIL:String(Date.now()+3600000),ENVIRONMENT:'staging',METRICS:'safe'}}));
  try{
   const db=await mf.getD1Database('DB');
-  for(const name of ['0001_authority.sql','0002_devices.sql','0003_capacity_60.sql','0004_management.sql','0005_bathrooms.sql','0006_login_identifier.sql'])await db.exec(runtimeMigrationSql(name));
+  for(const name of ['0001_authority.sql','0002_devices.sql','0003_capacity_60.sql','0004_management.sql','0005_bathrooms.sql','0006_login_identifier.sql','0007_current_login_uniqueness.sql'])await db.exec(runtimeMigrationSql(name));
 
   async function call(path,{body,cookie='',csrf='',epoch,key=crypto.randomUUID()}={}){
    const start=performance.now(),headers={Cookie:cookie,'CF-Connecting-IP':'192.0.2.1'};

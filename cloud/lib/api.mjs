@@ -366,7 +366,7 @@ export class Api{
    const display=Object.hasOwn(b,'displayName')?b.displayName.trim():u.display_name;
    const login=Object.hasOwn(b,'loginName')?String(b.loginName).trim().toLowerCase():(u.login_name||u.name);
    requireThat(/^[a-z0-9._-]{3,40}$/.test(login),'Usuario: de 3 a 40 letras, números, puntos o guiones.');
-   requireThat(!await this.store.one('SELECT id FROM users WHERE COALESCE(login_name,name)=? AND id<>?',login,u.id),'Ese usuario de acceso ya está ocupado.',409,'LOGIN_TAKEN');
+   requireThat(!await this.store.one('SELECT id FROM users WHERE COALESCE(login_name,name)=? AND id<>? AND deleted_at IS NULL',login,u.id),'Ese usuario de acceso ya está ocupado.',409,'LOGIN_TAKEN');
    requireThat(display&&display.length<=80,'Nombre visible: de 1 a 80 caracteres.');
    let identity=Object.hasOwn(b,'identity')?b.identity.trim().toLowerCase():u.identity;
    requireThat(!identity||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identity),'Correo inválido.');
