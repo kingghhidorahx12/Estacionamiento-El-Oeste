@@ -364,7 +364,9 @@ export class Api{
    const u=requireRow(await this.store.one('SELECT * FROM users WHERE id=? AND deleted_at IS NULL',b.id),'Usuario desconocido.');
    requireThat(['admin','employee'].includes(b.role)&&typeof b.active==='boolean','Acceso inválido.');
    const display=Object.hasOwn(b,'displayName')?b.displayName.trim():u.display_name;
-   const login=Object.hasOwn(b,'loginName')?String(b.loginName).trim().toLowerCase():(u.login_name||u.name);
+   // Older open screens sent only displayName. Treat their rename as a login
+   // rename too, instead of silently changing the label and keeping old access.
+   const login=Object.hasOwn(b,'loginName')?String(b.loginName).trim().toLowerCase():Object.hasOwn(b,'displayName')&&display!==u.display_name?display.toLowerCase():(u.login_name||u.name);
    requireThat(/^[a-z0-9._-]{3,40}$/.test(login),'Usuario: de 3 a 40 letras, números, puntos o guiones.');
    requireThat(!await this.store.one('SELECT id FROM users WHERE COALESCE(login_name,name)=? AND id<>? AND deleted_at IS NULL',login,u.id),'Ese usuario de acceso ya está ocupado.',409,'LOGIN_TAKEN');
    requireThat(display&&display.length<=80,'Nombre visible: de 1 a 80 caracteres.');

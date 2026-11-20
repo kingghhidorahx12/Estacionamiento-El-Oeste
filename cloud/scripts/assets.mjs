@@ -14,7 +14,7 @@ html=html.replace('<link rel="stylesheet" href="/style.css">','').replace('<link
  .replace('<span>Escanear tarjeta<small>Entrada o salida automática</small></span>','<span>Escanear tarjeta<small>Entrada / Salida automática</small></span>')
  .replace('<span>Usar número<small>Sin cámara</small></span>','<span>Usar número<small>Sin cámara</small></span>');
 html=html.replace('<p id="cloud-device-approval"','<details class="gap-top"><summary>Nombrar este dispositivo · opcional</summary><label class="gap-top">Nombre del dispositivo<input name="deviceLabel" minlength="3" maxlength="80" placeholder="Ej. Celular de recepción" autocomplete="off"></label></details><p id="cloud-device-approval"');
-await writeFile(resolve(out,'index.html'),html);await writeFile(resolve(out,'cloud-client.js'),(await readFile(resolve(root,'cloud/client.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/management.js'),'utf8')));await cp(resolve(root,'cloud/style.css'),resolve(out,'cloud.css'));await cp(resolve(root,'cloud/ocr.js'),resolve(out,'ocr.js'));
+await writeFile(resolve(out,'index.html'),html);await writeFile(resolve(out,'cloud-client.js'),(await readFile(resolve(root,'cloud/client.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/management.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/app-update.js'),'utf8')));await cp(resolve(root,'cloud/style.css'),resolve(out,'cloud.css'));await cp(resolve(root,'cloud/ocr.js'),resolve(out,'ocr.js'));
 const manifest=JSON.parse(await readFile(resolve(out,'manifest.webmanifest'),'utf8'));
 manifest.theme_color='#244743';manifest.background_color='#f2eee4';
 await writeFile(resolve(out,'manifest.webmanifest'),JSON.stringify(manifest,null,2)+'\n');
@@ -37,7 +37,8 @@ replace("${state.sync?.last?'Última sincronización: '+dateTime(Number(state.sy
 replace("if(state&&!document.hidden&&!busy)refresh(tab==='inicio'&&!$('#modal').open);},15000)","if(state&&!document.hidden&&!busy&&Date.now()-cloudLastAction<120000)refresh(tab==='inicio'&&!$('#modal').open);},60000)");
 replace("perifericos:peripheralsView","perifericos:cloudPeripherals");
 replace("async function updatesView(){","async function updatesView(){return cloudApplication();\n");
-replace("async function action(name,target){","async function action(name,target){\n if(name==='reload-cloud'){location.reload();return;}\n");
+replace("async function action(name,target){","async function action(name,target){\n if(name==='reload-cloud'){await cloudReloadApplication();return;}\n");
+replace("navigator.serviceWorker.register('/sw.js').catch(()=>{});","cloudInstallUpdates();");
 replace("async function action(name,target){","async function action(name,target){\n if(name==='cloud-devices'){await cloudDevices();return;}\n");
 replace('<summary>Agregar usuario</summary>','<summary>Agregar usuario</summary>');
 replace("function usersView(){$('#main').innerHTML=", "function usersView(){$('#main').innerHTML='<div class=\"compact-actions\"><button class=\"secondary\" data-action=\"cloud-devices\">Teléfonos autorizados</button></div>'+");
@@ -69,5 +70,12 @@ app=app.replaceAll('Servidor de prueba','Aplicación');
 await writeFile(resolve(out,'app.js'),app);
 async function files(dir){const result=[];for(const e of await readdir(dir,{withFileTypes:true}))e.isDirectory()?result.push(...await files(resolve(dir,e.name))):result.push(resolve(dir,e.name));return result;}
 const digest=createHash('sha256');for(const file of (await files(out)).sort())if(file!==resolve(out,'sw.js'))digest.update(file.slice(out.length)).update(await readFile(file));
-let sw=await readFile(resolve(out,'sw.js'),'utf8');sw=sw.replace("const CACHE='oeste-shell-v9'","const CACHE='oeste-cloud-shell-"+digest.digest('hex').slice(0,16)+"'").replace("const FILES=['/'","const FILES=['/cloud-client.js','/cloud.css','/'").replace("k.startsWith('oeste-shell-')","k.startsWith('oeste-cloud-shell-')").replace('Servidor local sin conexión','Servidor sin conexión');await writeFile(resolve(out,'sw.js'),sw);
+digest.update(await readFile(resolve(root,'cloud/sw.js')));
+const version=digest.digest('hex').slice(0,16);
+html=html.replace('<html lang="es-MX"','<html lang="es-MX" data-cloud-version="'+version+'"').replace(/(src|href)="(\/[^/"?]+\.(?:js|css))"/g,(_,attr,path)=>attr+'="'+path+'?v='+version+'"');
+await writeFile(resolve(out,'index.html'),html);
+const shell=JSON.parse((await readFile(resolve(root,'web/sw.js'),'utf8')).match(/const FILES=(\[[^;]+\]);/)[1].replaceAll("'",'"'));
+const cached=['/cloud-client.js','/cloud.css',...shell].map(path=>/^\/[^/]+\.(js|css)$/.test(path)?path+'?v='+version:path);
+const sw=(await readFile(resolve(root,'cloud/sw.js'),'utf8')).replace('__CLOUD_VERSION__',version).replace('__CLOUD_FILES__',JSON.stringify(cached));
+await writeFile(resolve(out,'sw.js'),sw);
 console.log('Cloud assets prepared from existing web UI; no credentials, production QR, data or Android distribution changes.');

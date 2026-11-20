@@ -21,3 +21,19 @@ test('changing the login and PIN preserves the current trusted session, closes o
   const archived=db.db.prepare('SELECT name,active,deleted_at FROM users WHERE id=?').get(f.users[1].id);assert.equal(archived.name,f.users[1].name);assert.equal(archived.active,0);assert.ok(archived.deleted_at);
  }finally{db.db.close();}
 });
+
+test('a rename from the previous screen changes the actual login together with its PIN, never just the label',async()=>{
+ const db=new SqliteD1(),f=await seed(db),worker=createWorker({clock:()=>f.at}),owner=f.users[0];let cookie='',csrf='';
+ const call=async(path,body)=>{const headers={Cookie:['__Host-oeste-device='+owner.deviceToken,cookie].filter(Boolean).join('; '),'CF-Connecting-IP':'192.0.2.2'};if(body)Object.assign(headers,{'Content-Type':'application/json',Origin:'https://oeste.test','X-CSRF':csrf,'Idempotency-Key':crypto.randomUUID()});const r=await worker.fetch(new Request('https://oeste.test/api/'+path,{method:body?'POST':'GET',headers,body:body?JSON.stringify(body):undefined}),f.env);const data=await r.json();return {status:r.status,data,cookie:r.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')};};
+ try{
+  const login=await call('login',{name:owner.name,password:'65432198'});cookie=login.cookie;csrf=login.data.csrf;
+  const changed=await call('user-update',{id:owner.id,displayName:'NewOwner',pin:'97531864',role:'admin',active:true});
+  assert.equal(changed.status,200);assert.equal(changed.data.loginName,'newowner');assert.equal(changed.data.reauthenticate,false);
+  const state=await call('state');assert.equal(state.data.name,'NewOwner');assert.equal(state.data.accountLogin,'newowner');assert.equal(state.data.login,owner.name);
+  assert.equal((await call('login',{name:owner.name,password:'97531864'})).status,401);
+  assert.equal((await call('login',{name:'NewOwner',password:'97531864'})).status,200);
+  const before=db.db.prepare('SELECT hash,revision FROM users WHERE id=?').get(owner.id);
+  assert.equal((await call('user-update',{id:owner.id,displayName:'Invalid Login With Spaces',pin:'11111111',role:'admin',active:true})).status,400);
+  assert.deepEqual(db.db.prepare('SELECT hash,revision FROM users WHERE id=?').get(owner.id),before);
+ }finally{db.db.close();}
+});
