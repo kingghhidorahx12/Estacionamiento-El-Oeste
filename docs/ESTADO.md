@@ -462,3 +462,25 @@ Aplicadas sólo las migraciones pendientes 0006 y 0007 a la D1 existente; 0005 d
 | cloud.css | `9f1ea78757b3c6282ea61b7537cab3834764ee96978862db9ddd344cc4ab3a26` |
 | ocr.js | `909c6a0b95d5538de7c5da25efce6b636190543345818760c2d5d95e8733e71d` |
 | sw.js | `b8d7a74a1812604b8c9e0b0e7a7ef1ce99cc90dce212d71d1e45b292505f6539` |
+
+
+## Corrección de nombre de acceso y pantallas anteriores · 20/11/2026
+
+Commit de código: `9c5eb808c1a6f95339c8a38c783fba389d156588`. Siete archivos revisados: `cloud/lib/api.mjs`, `cloud/ui.js`, `cloud/scripts/assets.mjs`, `cloud/app-update.js`, `cloud/sw.js`, `cloud/tests/login-change.test.mjs` y `cloud/tests/app-update.test.mjs`. Borrador histórico `web/ocr.js` preservado y excluido.
+
+La consulta real confirmó el problema reportado: el nombre visible cambió, pero el identificador de entrada anterior permaneció. El formulario antiguo sólo enviaba displayName; el servidor antes lo trataba como un cambio exclusivamente visual. Se añadió compatibilidad para que ese renombrado también cambie el acceso, con validación previa a modificar el PIN. Equipo ahora tiene un solo campo Usuario, con mayúsculas visibles y acceso normalizado, manteniendo users.name como identidad histórica.
+
+La cuenta afectada se reconcilió mediante lote D1 con guardas de identidad/revisión/unicidad y auditoría. No se pidió ni restableció el PIN nuevo; hash y salt comparados sólo en memoria permanecieron iguales. Identidad histórica, agregados de visitas/pagos/baños/pensiones/tarjetas/configuración, navegadores y vencimientos de las sesiones existentes conservados. No se almacenaron hashes ni credenciales en evidencia o Git. Evidencia privada: `.dev/ui-access-20261120/login-repair-result.json`.
+
+La URL seguía sirviendo los assets previamente publicados, lo que no acreditaba la pantalla abierta del teléfono; se corrige esa limitación de verificación. HTML, scripts y CSS usan una misma revisión; SW Cloud separado, caché vigente y actualización diferida mientras haya formulario/operación. Una pantalla abierta antes de este mecanismo requiere recarga inicial; no borrar cookies ni datos.
+
+Validación: 17 pruebas enfocadas aprobadas (renombrado nuevo/antiguo, rechazo atómico de nombre inválido, sesiones/seguridad, UI y actualización), dry-run Wrangler aprobado e integración HTTP workerd/D1 aprobada. La primera ejecución de workerd recibió EACCES de red loopback del sandbox; repetida con permiso de ejecución local, pasó. En Edge headless con perfil aislado y datos ficticios: formulario de un solo nombre → guardar nombre/PIN → salir → acceso viejo HTTP 401 → entrar con nombre/PIN nuevos; nombre mostrado y acceso coinciden. Vista Aplicación renderizada sin entrega/ensayo/prueba. Resultado privado: `browser-result.json`; no se acredita una prueba física del teléfono ni una captura de pantalla nueva. OCR no se modificó ni se repitieron sus pruebas.
+
+Publicado en el mismo Worker y D1, versión `35515981-676b-4a69-b9e9-70336f923121`, interfaz `dfc9643cebaaaea2`. Health 200; estado anónimo 401. Nueve assets públicos idénticos al build y tres URLs versionadas HTTP 200 cotejadas. Acceso y nombre visible actuales conciliados en D1; no se probó el PIN real nuevo por desconocerlo. `publication.json` y `deployment.txt` conservan evidencia privada. Sin migraciones, limpieza de registros, corte de autoridad, cambios de planes/Secrets, Android, APK, Releases ni El Muelle.
+
+| Asset | SHA-256 público |
+|---|---|
+| index.html | `df3b5372c57eb81c2edf27708f342b201797209cc974a460d224c9265002dbc5` |
+| app.js | `06bea90bf422cc01665767d24a00668fa282fc2de5e2674744651123abb6e4f5` |
+| cloud-client.js | `3e1e18d9cc007095775b50913c70b813515939340cb9d736fd79003b1ec3b7e2` |
+| sw.js | `43a72e1a9c3b5946a7ade56d78cbf02d34d2cec872e38d467a826e78187fd2a8` |
