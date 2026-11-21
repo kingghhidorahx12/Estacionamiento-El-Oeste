@@ -484,3 +484,18 @@ Publicado en el mismo Worker y D1, versión `35515981-676b-4a69-b9e9-70336f92312
 | app.js | `06bea90bf422cc01665767d24a00668fa282fc2de5e2674744651123abb6e4f5` |
 | cloud-client.js | `3e1e18d9cc007095775b50913c70b813515939340cb9d736fd79003b1ec3b7e2` |
 | sw.js | `43a72e1a9c3b5946a7ade56d78cbf02d34d2cec872e38d467a826e78187fd2a8` |
+
+
+## Reiniciar datos: función conservada con textos neutrales · 20/11/2026
+
+Aclaración del propietario: quitar referencias a entrega/ensayo no significaba retirar la función. Commit `bc2018d1f0a409aaa8d04ff2b8a0e9f3e119fda5`, tres archivos revisados: `cloud/management.js`, `cloud/lib/management.mjs`, `cloud/tests/reset-ui.test.mjs`. Aplicación vuelve a ofrecer Actualizar aplicación y Reiniciar datos. Este último mantiene resumen, confirmación LIMPIAR y PIN administrativo. Con cero datos la opción sigue visible deshabilitada con texto neutral. También se neutralizaron mensajes visibles del servidor; endpoints, permisos, guardas, transacción e idempotencia se conservaron. La aclaración sustituye la retirada anterior de la UI; AGENTS.md no se modificó.
+
+Cinco pruebas afectadas aprobadas: dos de UI, dos de reinicio/guardas/rollback y una de privacidad del PIN. Dry-run Wrangler aprobado. Integración en Edge headless aislado, con Worker y SQLite locales y datos ficticios: abrir opción → resumen/PIN → confirmar → visita ficticia eliminada → 60 tarjetas y tres usuarios conservados → opción visible deshabilitada. Evidencia privada en `.dev/reset-ui-20261120/browser-result.json`. No se ejecutó reinicio alguno en Cloudflare, ni se cambió PIN, usuarios, QR o configuración reales; el borrador histórico OCR permanece intacto y fuera del commit.
+
+Publicado en Worker existente, versión `16dc3607-1158-4f37-a9d0-bb67fdd843eb`, interfaz `d309a44dfa8b1fed`. Health 200; estado anónimo 401. Cuatro assets idénticos al build y URL de controlador versionada cotejada; opción presente y títulos anteriores ausentes. Evidencia privada en `publication.json` y `deployment.txt` del mismo directorio. Sin migraciones, planes nuevos, Secrets, APK, corte de autoridad ni cambios en El Muelle; no se acredita prueba física del teléfono.
+
+| Asset modificado | SHA-256 público |
+|---|---|
+| index.html | `5b2d79c7943099f28ffc3d9469e9aee973b8db35350f38ce411350d5b057444f` |
+| cloud-client.js | `b7a2583212e0164d67ff79d1cc8efec412d3c2176c73e111d0c3d44fff84cd50` |
+| sw.js | `2d25eb5d801139acc6b7de601f9a7598be10d5fca2089d7b0bcd2f71890c7368` |
