@@ -1,4 +1,4 @@
-/* Account and delivery controls. No credentials or photos are persisted here. */
+/* Account and application controls. No credentials or photos are persisted here. */
 function managementForm(id,run){
  const form=document.getElementById(id);
  form.addEventListener('submit',async event=>{
@@ -22,7 +22,16 @@ function cloudDeleteUser(id){
  managementForm('delete-user-form',async()=>{await request('user-delete',{id,confirmed:true});closeModal();await refresh();toast('Acceso eliminado. Historial conservado.');});
 }
 async function cloudApplication(){
- $('#main').innerHTML=heading('APLICACIÓN','El Oeste','Consulta y actualiza la aplicación.')+`<section class="panel application-info"><h2>Actualizar aplicación</h2><p class="gap-top">Recarga para obtener la versión más reciente. Tus registros se conservan.</p><button class="primary gap-top" data-action="reload-cloud">${icon('refresh')} Recargar aplicación</button></section>`;
+ const preview=await request('delivery-status');
+ $('#main').innerHTML=heading('APLICACIÓN','El Oeste','Actualiza la aplicación o reinicia sus datos.')+`<div class="application-grid"><section class="panel"><h2>Actualizar aplicación</h2><p class="gap-top">Recarga para obtener la versión más reciente. Tus registros se conservan.</p><button class="primary gap-top" data-action="reload-cloud">${icon('refresh')} Recargar aplicación</button></section><section class="panel"><h2>Reiniciar datos</h2><p class="gap-top">Elimina visitas, cobros de estacionamiento y baños, y pensiones. Conserva configuración, usuarios, accesos y códigos QR.</p><button class="danger gap-top" data-management="reset-data" ${preview.allowed?'':'disabled'}>Reiniciar datos</button>${preview.allowed?'':`<p class="note gap-top">${esc(preview.reason)}</p>`}</section></div>`;
+}
+async function cloudResetDataDialog(){
+ const preview=await request('delivery-status');if(!preview.allowed){toast(preview.reason);return;}const c=preview.counts;
+ openModal('Reiniciar datos',`<form class="management-form" id="reset-data-form"><div class="delivery-counts"><span>Visitas<b>${c.visits}</b></span><span>Activas<b>${c.active}</b></span><span>Cobros<b>${c.payments}</b></span><span>Cobros de baños<b>${c.bathrooms}</b></span><span>Pensiones<b>${c.monthly}</b></span><span>Total registrado<b>${money(c.total)}</b></span></div><p class="note gap-top">Se eliminarán estos registros y su historial. Se conservan configuración, usuarios, accesos y códigos QR. Las tarjetas ocupadas quedan disponibles y conservan sus bloqueos. Esta acción no se puede deshacer.</p><label class="gap-top">Escribe LIMPIAR para confirmar<input name="confirmation" required pattern="LIMPIAR" autocomplete="off" autocapitalize="characters" maxlength="7"></label><label class="gap-top">Tu PIN de administrador<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{6,12}" required autocomplete="current-password" maxlength="12"></label>${managementActions('Reiniciar datos',true)}</form>`);
+ managementForm('reset-data-form',async f=>{
+  await request('delivery-reset',{snapshot:preview.snapshot,confirmed:true,confirmation:f.elements.confirmation.value,pin:f.elements.pin.value});
+  closeModal();await refresh(false);await cloudApplication();toast('Datos reiniciados. Configuración y accesos conservados.');
+ });
 }
 document.addEventListener('click',async event=>{
  const button=event.target.closest('[data-management],[data-user-delete]');if(!button)return;
@@ -31,6 +40,7 @@ document.addEventListener('click',async event=>{
   const {management:action,id,label,code}=button.dataset;
   if(button.dataset.userDelete){cloudDeleteUser(button.dataset.userDelete);return;}
   if(action==='devices-refresh'){await cloudDeviceManager();return;}
+  if(action==='reset-data'||action==='delivery-open'){await cloudResetDataDialog();return;}
   if(action==='deny-device'){await request('device-deny',{id});await cloudDeviceManager();toast('Solicitud rechazada.');return;}
   if(action==='approve-device'){
    openModal('Autorizar dispositivo',`<form class="management-form" id="approve-device-form"><p>Comprueba que este código aparece en el dispositivo <b>${esc(label)}</b>:</p><p class="approval-code gap-top">${esc(code)}</p>${managementActions('Coincide · Autorizar',false)}</form>`);

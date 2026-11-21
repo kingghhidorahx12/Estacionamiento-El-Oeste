@@ -37,7 +37,7 @@ export async function deliveryStatus(api){
 
  return {
   allowed:permitted&&hasData,
-  reason:!permitted?'La limpieza sólo está disponible para datos de prueba identificados; no borra una instalación operativa.':!hasData?'No hay operaciones de prueba para limpiar.':'',
+  reason:!permitted?'El reinicio de datos no está habilitado en esta instalación.':!hasData?'No hay datos para reiniciar.':'',
   counts,epoch,
   snapshot:await fingerprint('delivery-preview',{counts,epoch},api.env.REQUEST_KEY)
  };
@@ -85,7 +85,7 @@ export async function manage(api,path,b,tx){
  }
 
  if(path==='delivery-reset'){
-  requireThat(b.confirmed===true&&b.confirmation==='LIMPIAR','Confirma que sólo se eliminarán operaciones de prueba.');
+  requireThat(b.confirmed===true&&b.confirmation==='LIMPIAR','Escribe LIMPIAR para confirmar el reinicio de datos.');
 
   const preview=await deliveryStatus(api);
   requireThat(preview.allowed,preview.reason,409,'RESET_UNAVAILABLE');
