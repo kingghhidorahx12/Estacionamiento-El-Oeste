@@ -499,3 +499,35 @@ Publicado en Worker existente, versión `16dc3607-1158-4f37-a9d0-bb67fdd843eb`, 
 | index.html | `5b2d79c7943099f28ffc3d9469e9aee973b8db35350f38ce411350d5b057444f` |
 | cloud-client.js | `b7a2583212e0164d67ff79d1cc8efec412d3c2176c73e111d0c3d44fff84cd50` |
 | sw.js | `2d25eb5d801139acc6b7de601f9a7598be10d5fca2089d7b0bcd2f71890c7368` |
+
+## Catálogo configurable, Presidencia y eventos · 23/11/2026
+
+Código publicado: `63460574aceb7a88da2b291f48ade61ef6e0123d`. Revisados los 23 archivos exactos de Cloud del commit y su diff preparado, sin valores de Secrets ni tokens. El borrador previo `web/ocr.js` permanece sin modificar y fuera del commit; el build usa expresamente el OCR de Cloud. Android, réplica, APK, certificados, Releases, manifiesto de actualización y El Muelle no se modificaron.
+
+Tarifas pasa al menú principal de administración y reúne Normal, Preferencial, Presidencia y Eventos. Catálogo de servicios y tipos de vehículo con alta, edición y retiro, precios por perfil/evento, estacionamiento incluido/opcional y complementos. Los cambios versionan entradas futuras; no reescriben estancias abiertas ni pagos. Lavados conservan bases aprobadas, agregan Moto/$100 y permiten el complemento opcional de $30 o incluir estacionamiento en el precio. Baños normal/$7 y Presidencia/$5. Las modalidades mensuales de $500/$600 quedan pendientes de asignación humana por tipo de vehículo, sin condiciones nocturnas inventadas.
+
+Entrada ordenada tarjeta → placa → perfil/persona → servicio/opciones → confirmar. Seleccionar una tarjeta manualmente no registra entrada. Placas de Presidencia preseleccionan persona/perfil; cambiar la placa limpia elecciones dependientes. Salir a cuenta libera vehículo/tarjeta sin registrar efectivo. Cargos, pagos y asignaciones se guardan por lote D1 con idempotencia, guardas de saldo/revisión y registros monetarios inmutables. Abonos parciales se asignan en orden y sólo los pagos recibidos entran al reporte del cobrador. El pago de una mensualidad parcialmente abonada muestra el saldo restante y rechaza una confirmación desactualizada.
+
+Pensiones 12 h/$50 y 24 h/$60, desde entrada. Mensualidades de 30 días exactos, fecha/hora explícitas y aviso configurable, inicialmente tres días. Un contrato pendiente no habilita acceso; crédito de Presidencia exige registro explícito. Saldo vencido mantiene la base original y acumula bloques cortos/largos de pensión, sin convertir mensualidades en estacionamiento. Estacionamiento que permanece tras cerrar añade pensión nocturna y vuelve a cobro horario al abrir. Horario inicial 07:00–20:00 editable. Eventos conserva precio de entradas anteriores y amplía su cobertura; sólo entradas nuevas reciben precios de evento desde activación, inicialmente hasta 03:00.
+
+El acceso recuerda nombres autenticados por navegador, sin guardar PIN. Comprobar dispositivo muestra versión/capacidades localmente y se incorporan alternativas para funciones ausentes de navegadores anteriores. Reiniciar datos se conserva con título neutral y las mismas restricciones; incluye las tablas monetarias nuevas, sin ejecutarlo sobre Cloudflare. OCR normaliza letras/números y matrículas partidas en renglones; conserva modelo fast local, fotos sólo RAM, lectura alternativa acotada y revisión manual.
+
+Validación: suite completa de 70 pruebas aprobada durante la implementación; después, 19 comprobaciones focalizadas de catálogo/UI/acceso recordado/migración aprobadas. Tras los últimos ajustes de importes y guardas: build y dry-run aprobados, siete pruebas de catálogo y una integración HTTP completa en workerd/D1 aprobadas. La integración cubre autorización de navegador, concurrencia, pago único, cierre a cuenta y abono. No se repitieron Java, Android o réplica sin cambios.
+
+Edge headless aislado, Worker/SQLite locales y datos ficticios: flujo principal completo con entrada manual sin registro automático, placa asociada, cierre a cuenta sin ingreso, abono, tipo nuevo, reinicio neutral y acceso con usuario recordado. Revisión avanzada aprobó mensualidad pendiente/pago/visita sin base duplicada, eventos con precios antes/después, cobertura a las 02:00, noche/reapertura, vencimiento mensual de 13 horas con sólo $60 de pensión, y creación/cobro/reporte de servicio nuevo. Anchos 360/390/768/1280 sin desbordamiento horizontal. Dos errores encontrados en la revisión (submit interceptado y contrato sin preselección) se corrigieron antes de publicar. Evidencia privada: `.dev/catalog-20261123/browser-result.json`, `browser-extended-result.json` y capturas del mismo directorio. La herramienta CUA no respondió y se usó Edge de prueba, sin acceder a pestañas personales.
+
+Motor OCR WASM real con CSP del Worker, imagen ficticia en RAM: lectura de una línea y texto secundario aprobadas, cero infracciones CSP; `ocr-browser-result.json`. Estos resultados no acreditan cámara física, precisión en placas reales, PWA/WebAPK instalada, Moto e5 Plus/Android 8, HONOR, iPhone/Safari ni impresora. El cierre nativo reportado del acceso instalado en Moto sigue pendiente de comprobación en ese teléfono; no se declara resuelto por una simulación.
+
+Aplicada únicamente `0008_catalog_accounts.sql` a la D1 existente. Worker `eloeste` y UUID `d5ca3e8d0f8c45ddaa90866ebb1ee08b` verificados mediante OAuth aislado. Versión `fa41ed70-951c-451c-b6e9-d83af15dd68e`, interfaz `460ef67b2228524b`, en [El Oeste](https://eloeste.estacionamiento.workers.dev). Catálogo persistido como versión 6 en lote guardado, huella `0db7cb45b7f28a83b49a7793d51419a553458073b0dcd5bb63e5f11c20b04740`. Conciliación antes/después conserva conteos/revisiones/saldos de negocio, usuarios, dispositivos y tarjetas. Autoridad/origen permanecen iguales; no se ejecutó limpieza ni corte productivo, ni se cambiaron PIN, planes o Secrets. Evidencia privada: `remote-before.json`, `config-activation.json`, `deployment.txt` y `publication.json`.
+
+Diez assets públicos y tres URLs versionadas HTTP 200 idénticos al build; health devuelve el identificador publicado y estado anónimo HTTP 401. Huellas SHA-256 públicas:
+
+| Asset modificado | SHA-256 |
+|---|---|
+| index.html | `e6ae8332ca17b24ff465dd18a87a66089f20481009abfa2e93b23373d38413b7` |
+| app.js | `d2d398ea23c127276ac5911c62afa31ab4ead7ad6d2b4817c2b3f6fe00ddcaec` |
+| cloud-client.js | `14ed616e019db31ae67e0f22338250f0bc58220177584bde9304ef1edcf793ac` |
+| cloud.css | `014e0663103d3195f705e23b731605672524676452fa76585215f11f44e3ec43` |
+| sw.js | `7126c2d3d1bb89c99028488affb75c7fd0d54e9a5591ab16e0163212c76dcefa` |
+| ocr.js | `19106d052ebc109a2e95afb94e8f593ef18d6e2181389d19d9e092bf26d69ea8` |
+| compat.js | `d5d711e66ccd28ccd993b6ed5d0e1a2af07808b0a59901465738aa86f3b1d54f` |
