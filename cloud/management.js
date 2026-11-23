@@ -4,7 +4,7 @@ function managementForm(id,run){
  form.addEventListener('submit',async event=>{
   event.preventDefault();event.stopImmediatePropagation();if(form.dataset.sending||!form.reportValidity())return;
   form.dataset.sending='1';const button=form.querySelector('[type=submit]'),error=form.querySelector('[role=alert]');button.disabled=true;
-  try{await run(form);}catch(e){if(error)error.textContent=e.message;else toast(e.message);}finally{delete form.dataset.sending;button.disabled=false;}
+  try{await run(form);}catch(e){if(error)error.textContent=e.message;else toast(e.message);}finally{delete form.dataset.sending;button.disabled=document.documentElement.classList.contains('cloud-offline')&&['entry-form','catalog-checkout-form','catalog-counter','catalog-abono'].includes(form.id);}
  });
 }
 function managementActions(label,body){return '<div class="modal-actions"><button class="secondary" type="button" data-action="close-modal">Cancelar</button><button class="'+(body?'danger':'primary')+'" type="submit">'+label+'</button></div><p class="error gap-top" role="alert"></p>';}
@@ -23,7 +23,7 @@ function cloudDeleteUser(id){
 }
 async function cloudApplication(){
  const preview=await request('delivery-status');
- $('#main').innerHTML=heading('APLICACIÓN','El Oeste','Actualiza la aplicación o reinicia sus datos.')+`<div class="application-grid"><section class="panel"><h2>Actualizar aplicación</h2><p class="gap-top">Recarga para obtener la versión más reciente. Tus registros se conservan.</p><button class="primary gap-top" data-action="reload-cloud">${icon('refresh')} Recargar aplicación</button></section><section class="panel"><h2>Reiniciar datos</h2><p class="gap-top">Elimina visitas, cobros de estacionamiento y baños, y pensiones. Conserva configuración, usuarios, accesos y códigos QR.</p><button class="danger gap-top" data-management="reset-data" ${preview.allowed?'':'disabled'}>Reiniciar datos</button>${preview.allowed?'':`<p class="note gap-top">${esc(preview.reason)}</p>`}</section></div>`;
+ $('#main').innerHTML=heading('APLICACIÓN','El Oeste','Actualiza la aplicación o reinicia sus datos.')+`<div class="application-grid"><section class="panel"><h2>Actualizar aplicación</h2><p class="gap-top">Recarga para obtener la versión más reciente. Tus registros se conservan.</p><button class="primary gap-top" data-action="reload-cloud">${icon('refresh')} Recargar aplicación</button><button class="ghost gap-top" data-catalog="device-info">Comprobar dispositivo</button></section><section class="panel"><h2>Reiniciar datos</h2><p class="gap-top">Elimina visitas, cobros de estacionamiento y baños, y pensiones. Conserva configuración, usuarios, accesos y códigos QR.</p><button class="danger gap-top" data-management="reset-data" ${preview.allowed?'':'disabled'}>Reiniciar datos</button>${preview.allowed?'':`<p class="note gap-top">${esc(preview.reason)}</p>`}</section></div>`;
 }
 async function cloudResetDataDialog(){
  const preview=await request('delivery-status');if(!preview.allowed){toast(preview.reason);return;}const c=preview.counts;

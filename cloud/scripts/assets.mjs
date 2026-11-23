@@ -4,7 +4,7 @@ if(!out.startsWith(resolve(root,'build')+'/')&&!out.startsWith(resolve(root,'bui
 await rm(out,{recursive:true,force:true});await mkdir(out,{recursive:true});await cp(resolve(root,'web'),out,{recursive:true});
 // Connection onboarding belongs only to the historical Android server.
 for(const file of ['connect.html','connect.js','connect.css','vehicle-vision.js'])await rm(resolve(out,file),{force:true});
-let html=await readFile(resolve(out,'index.html'),'utf8');html=html.replace('<script src="/app.js"','<script src="/cloud-client.js" defer></script><script src="/app.js"').replace('</head>','<link rel="stylesheet" href="/cloud.css"></head>').replace('Usa tu usuario y PIN personal.','Usa tu usuario y PIN personal.').replace('<p id="login-error"','<p id="cloud-device-approval" class="note" hidden></p><p id="login-error"').replace('Conéctate al Wi-Fi del estacionamiento.<br>La tablet debe estar encendida y el servidor activo.','Puedes usar Wi-Fi o datos móviles. La operación requiere conexión con el servidor.').replace('Sin conexión con la tablet. Comprueba el Wi-Fi y el servidor local. Los movimientos no se confirman hasta reconectar.','Sin conexión. Reconecta con Wi-Fi o datos móviles; no se confirman movimientos hasta consultar el servidor.').replace('Servidor local · MXN','Servidor Cloudflare · MXN');
+let html=await readFile(resolve(out,'index.html'),'utf8');html=html.replace('<script src="/vendor/jsQR.js"','<script src="/compat.js"></script><script src="/vendor/jsQR.js"').replace('<script src="/app.js"','<script src="/cloud-client.js" defer></script><script src="/app.js"').replace('</head>','<link rel="stylesheet" href="/cloud.css"></head>').replace('Usa tu usuario y PIN personal.','Usa tu usuario y PIN personal.').replace('<p id="login-error"','<p id="cloud-device-approval" class="note" hidden></p><p id="login-error"').replace('Conéctate al Wi-Fi del estacionamiento.<br>La tablet debe estar encendida y el servidor activo.','Puedes usar Wi-Fi o datos móviles. La operación requiere conexión con el servidor.').replace('Sin conexión con la tablet. Comprueba el Wi-Fi y el servidor local. Los movimientos no se confirman hasta reconectar.','Sin conexión. Reconecta con Wi-Fi o datos móviles; no se confirman movimientos hasta consultar el servidor.').replace('Servidor local · MXN','Servidor Cloudflare · MXN');
 // Cloud owns one ordered stylesheet; Android keeps the historical styles.
 html=html.replace('<link rel="stylesheet" href="/style.css">','').replace('<link rel="stylesheet" href="/atelier.css">','').replace('<link rel="stylesheet" href="/cards-print.css">','').replace('<link rel="stylesheet" href="/cloud.css">','<link rel="stylesheet" href="/cloud.css"><link rel="stylesheet" href="/cards-print.css">')
  .replace('content="#102d48"','content="#244743"').replace('Operación local','El Oeste · Estacionamiento')
@@ -15,6 +15,7 @@ html=html.replace('<link rel="stylesheet" href="/style.css">','').replace('<link
  .replace('<span>Usar número<small>Sin cámara</small></span>','<span>Usar número<small>Sin cámara</small></span>');
 html=html.replace('<p id="cloud-device-approval"','<details class="gap-top"><summary>Nombrar este dispositivo · opcional</summary><label class="gap-top">Nombre del dispositivo<input name="deviceLabel" minlength="3" maxlength="80" placeholder="Ej. Celular de recepción" autocomplete="off"></label></details><p id="cloud-device-approval"');
 await writeFile(resolve(out,'index.html'),html);await writeFile(resolve(out,'cloud-client.js'),(await readFile(resolve(root,'cloud/client.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/management.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/app-update.js'),'utf8')));await cp(resolve(root,'cloud/style.css'),resolve(out,'cloud.css'));await cp(resolve(root,'cloud/ocr.js'),resolve(out,'ocr.js'));
+await cp(resolve(root,'cloud/compat.js'),resolve(out,'compat.js'));
 const manifest=JSON.parse(await readFile(resolve(out,'manifest.webmanifest'),'utf8'));
 manifest.theme_color='#244743';manifest.background_color='#f2eee4';
 await writeFile(resolve(out,'manifest.webmanifest'),JSON.stringify(manifest,null,2)+'\n');
@@ -22,6 +23,13 @@ let app=await readFile(resolve(out,'app.js'),'utf8');const replace=(old,value)=>
 replace('async function request(path,body) {','async function request(path,body) {\n  return cloudRequest(path,body);\n  /* Historical local transport below remains unreachable in the cloud build. */');
 replace("password:f.elements.password.value}","password:f.elements.password.value,deviceLabel:f.elements.deviceLabel?.value||'Navegador nuevo'}");
 replace("csrf=state.csrf;$('#login')","csrf=state.csrf;cloudRecover();$('#login')");
+replace("csrf=state.csrf;cloudRecover();","csrf=state.csrf;catalogHydrate();cloudRecover();");
+replace("const views={inicio:home,","const views={clientes:catalogCustomersView,servicios:catalogServicesView,inicio:home,");
+replace("['inicio','entrada','historial','banos'].includes(next)","['inicio','entrada','historial','banos','clientes','servicios'].includes(next)");
+replace("function showLogin(){","function showLogin(){rememberedLogin();");
+replace("function settingsView(){","function settingsView(){if(state?.config?.catalog)return catalogSettings();");
+replace("function newMonthly(){","function newMonthly(){if(state?.config?.catalog)return catalogNewMonthly();");
+replace("async function routeCard(body){","async function routeCard(body){if(state?.config?.catalog)return catalogRouteCard(body);");
 replace("if(render)await renderTab();","if(render)await renderTab();cloudAuthority();");
 // Match the QR video's actual DOM; it has no .camera-wrap parent.
 replace('<video id="camera" class="gap-top" playsinline muted autoplay></video>','<video id="camera" class="scan-camera gap-top" playsinline muted autoplay></video>');
@@ -57,7 +65,7 @@ const a=app.indexOf('<form id="restore-form"'),b=app.indexOf('</form>',a);if(a<0
 app=app.replace("function userUpdate(id){const u=state.users.find(u=>u.id===id);", "function userUpdate(id){const u=state.users.find(u=>u.id===id);").replace("Guardar acceso</button></div></form>`);}","Guardar acceso</button></div></form>`);$('#user-update-form').elements.identity.value=u.identity||'';}");
 // Replace whole view functions, never layer duplicate historical declarations.
 // Keep the submitters, delegated actions and API payloads from web unchanged.
-const ui=(await readFile(resolve(root,'cloud/ui.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/ocr-camera.js'),'utf8'));
+const ui=(await readFile(resolve(root,'cloud/ui.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/ocr-camera.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/catalog-ui.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/remember-users.js'),'utf8'));
 for(const name of ['heading','empty','home','renderVehicles','adminView','entryView','updateEntry','checkoutView','monthlyView','usersView','userUpdate','photo','capture','recognize']){
  const start=app.search(new RegExp('^(?:async )?function '+name+'\\(','m'));
  if(start<0)throw new Error('Missing historical view: '+name);
@@ -75,7 +83,7 @@ const version=digest.digest('hex').slice(0,16);
 html=html.replace('<html lang="es-MX"','<html lang="es-MX" data-cloud-version="'+version+'"').replace(/(src|href)="(\/[^/"?]+\.(?:js|css))"/g,(_,attr,path)=>attr+'="'+path+'?v='+version+'"');
 await writeFile(resolve(out,'index.html'),html);
 const shell=JSON.parse((await readFile(resolve(root,'web/sw.js'),'utf8')).match(/const FILES=(\[[^;]+\]);/)[1].replaceAll("'",'"'));
-const cached=['/cloud-client.js','/cloud.css',...shell].map(path=>/^\/[^/]+\.(js|css)$/.test(path)?path+'?v='+version:path);
+const cached=['/compat.js','/cloud-client.js','/cloud.css',...shell].map(path=>/^\/[^/]+\.(js|css)$/.test(path)?path+'?v='+version:path);
 const sw=(await readFile(resolve(root,'cloud/sw.js'),'utf8')).replace('__CLOUD_VERSION__',version).replace('__CLOUD_FILES__',JSON.stringify(cached));
 await writeFile(resolve(out,'sw.js'),sw);
 console.log('Cloud assets prepared from existing web UI; no credentials, production QR, data or Android distribution changes.');

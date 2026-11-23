@@ -4,6 +4,8 @@ import {random,hash,password,seal,open,validPin,encryptBackup} from './crypto.mj
 import {Transaction} from './store.mjs';
 import {admin,verifyAccount} from './auth.mjs';
 import {devices,deliveryStatus,manage} from './management.mjs';
+import {catalogConfig,pricing,snapshotService,validateCatalog} from './catalog.mjs';
+import {catalogState,catalogRead,catalogWrite,eventsFor} from './catalog-api.mjs';
 
 const parse=row=>JSON.parse(row);
 const safeUser=u=>({id:u.id,name:u.name,login_name:u.login_name||u.name,display_name:u.display_name,role:u.role,active:u.active,identity:u.identity});
@@ -24,11 +26,13 @@ export class Api{
    actor?this.store.stmt('SELECT id,paid,actor,total,lines FROM payments WHERE actor=? AND paid>=? AND paid<? ORDER BY paid DESC',[actor,a,b]):this.store.stmt('SELECT id,paid,actor,total,lines FROM payments WHERE paid>=? AND paid<? ORDER BY paid DESC',[a,b]),
    this.store.stmt("SELECT entered FROM stays WHERE entered>=? AND entered<? AND state<>'cancelled'",[a,b]),
    this.store.stmt("SELECT exited FROM stays WHERE state='closed' AND exited>=? AND exited<?",[a,b]),
-   actor?this.store.stmt('SELECT id,paid,actor,total,lines,quantity FROM bathroom_payments WHERE actor=? AND paid>=? AND paid<? ORDER BY paid DESC',[actor,a,b]):this.store.stmt('SELECT id,paid,actor,total,lines,quantity FROM bathroom_payments WHERE paid>=? AND paid<? ORDER BY paid DESC',[a,b])
+   actor?this.store.stmt('SELECT id,paid,actor,total,lines,quantity FROM bathroom_payments WHERE actor=? AND paid>=? AND paid<? ORDER BY paid DESC',[actor,a,b]):this.store.stmt('SELECT id,paid,actor,total,lines,quantity FROM bathroom_payments WHERE paid>=? AND paid<? ORDER BY paid DESC',[a,b]),
+   actor?this.store.stmt('SELECT id,paid,actor,total,lines FROM settlements WHERE actor=? AND paid>=? AND paid<? ORDER BY paid DESC',[actor,a,b]):this.store.stmt('SELECT id,paid,actor,total,lines FROM settlements WHERE paid>=? AND paid<? ORDER BY paid DESC',[a,b]),
+   this.store.stmt("SELECT created,lines FROM service_charges WHERE created>=? AND created<? AND json_extract(lines,'$[0].category')='bathroom'",[a,b])
   ]);
 
-  const [parkingPayments,entries,exits,bathrooms]=snapshot.map(x=>x.results);
-  const payments=[...parkingPayments,...bathrooms].sort((a,b)=>b.paid-a.paid);
+  const [parkingPayments,entries,exits,bathrooms,settlements,bathroomCharges]=snapshot.map(x=>x.results);
+  const payments=[...parkingPayments,...bathrooms,...settlements].sort((a,b)=>b.paid-a.paid);
   const days=new Map();
 
   for(let d=from;d<=to;d=nextDate(d)){
@@ -46,6 +50,7 @@ export class Api{
    const day=days.get(businessDate(p.paid));
    if(day){day.bathroomPeople+=p.quantity;day.bathroomTransactions++;}
   }
+  for(const q of bathroomCharges){const day=days.get(businessDate(q.created));if(day){day.bathroomPeople+=parse(q.lines)[0].quantity||0;day.bathroomTransactions++;}}
 
   for(const s of entries){const d=days.get(businessDate(s.entered));if(d)d.entries++;}
   for(const s of exits){const d=days.get(businessDate(s.exited));if(d)d.exits++;}
@@ -59,13 +64,13 @@ export class Api{
     this.config(),
     this.store.all("SELECT s.*,c.state AS card_state FROM stays s JOIN cards c ON c.id=s.card_id WHERE s.state='active' ORDER BY s.entered DESC"),
     this.store.all('SELECT id,state FROM cards ORDER BY id'),
-    this.store.all('SELECT m.*,CASE WHEN p.id IS NULL THEN 0 ELSE 1 END AS paid FROM monthly m LEFT JOIN payments p ON p.monthly_id=m.id WHERE m.end_at>=? ORDER BY m.created DESC LIMIT 500',this.user.role==='admin'?0:this.at),
+    this.store.all('SELECT m.*,CASE WHEN p.id IS NOT NULL OR q.total IS NOT NULL AND coalesce((SELECT sum(cents) FROM charge_allocations WHERE charge_id=q.id),0)>=q.total THEN 1 ELSE 0 END AS paid,q.total-coalesce((SELECT sum(cents) FROM charge_allocations WHERE charge_id=q.id),0) AS balance,q.id AS charge_id FROM monthly m LEFT JOIN payments p ON p.monthly_id=m.id LEFT JOIN service_charges q ON q.monthly_id=m.id WHERE m.end_at>=? ORDER BY m.created DESC LIMIT 500',this.user.role==='admin'?0:this.at),
     this.history(businessDate(this.at),businessDate(this.at))
    ]);
 
    const authority=(await this.store.one("SELECT value FROM meta WHERE id='authority'"))?.value||'inactive';
-   const config={bathroomPrice:0,...parse(settings.body)};
-   const result={capacity:CAPACITY,deployment:'cloud',environment:this.env.ENVIRONMENT||'production',authority,serverTime:this.at,zone:'America/Mexico_City',name:this.user.display_name,login:this.user.name,accountLogin:this.user.login_name||this.user.name,role:this.user.role,csrf:this.user.csrf,config,version:settings.version,cards,stays:stays.map(s=>({...s,quote:quote(s,this.at)})),monthly,report:report.days[0]};
+   const config=catalogConfig({bathroomPrice:0,...parse(settings.body)}),extra=await catalogState(this,config);
+   const result={capacity:CAPACITY,deployment:'cloud',environment:this.env.ENVIRONMENT||'production',authority,serverTime:this.at,zone:'America/Mexico_City',name:this.user.display_name,login:this.user.name,accountLogin:this.user.login_name||this.user.name,role:this.user.role,csrf:this.user.csrf,config,version:settings.version,cards,stays:stays.map(s=>({...s,quote:pricing(s,this.at,extra.events)})),monthly,report:report.days[0],...extra};
 
    result.operationEpoch=(await this.store.one("SELECT value FROM meta WHERE id='operationEpoch'"))?.value||'0';
    if(this.user.role==='admin')result.users=(await this.store.all('SELECT id,name,login_name,display_name,role,active,identity FROM users WHERE deleted_at IS NULL ORDER BY name')).map(safeUser);
@@ -92,13 +97,15 @@ export class Api{
    const id=params.get('id');
    const p=requireRow(
     await this.store.one('SELECT id,paid,actor,total,lines FROM payments WHERE id=?',id)||
-    await this.store.one('SELECT id,paid,actor,total,lines FROM bathroom_payments WHERE id=?',id),
+    await this.store.one('SELECT id,paid,actor,total,lines FROM bathroom_payments WHERE id=?',id)||
+    await this.store.one('SELECT id,paid,actor,total,lines FROM settlements WHERE id=?',id),
     'Comprobante desconocido.'
    );
    requireThat(this.user.role==='admin'||p.actor===this.user.name,'No puedes imprimir ese comprobante.',403);
    return {...p,lines:parse(p.lines)};
   }
 
+  const catalogResult=await catalogRead(this,path,params);if(catalogResult)return catalogResult;
   throw new Fault('Operación no encontrada.',404);
  }
 
@@ -150,6 +157,23 @@ export class Api{
   if(!['backup','print-receipt'].includes(path))tx.guard("EXISTS(SELECT 1 FROM meta WHERE id='authority' AND value=?)",[authority]);
 
   if(['user-delete','device-rename','device-deny','delivery-reset'].includes(path))return manage(this,path,b,tx);
+  if(path==='entry'){
+   const setting=await this.config(),c=parse(setting.body);if(c.catalog&&b.service?.mode!=='monthly'){
+    const serviceId=b.service?.wash?'wash_'+b.service.wash:b.service?.mode==='temporary'?c.catalog.overdueShortId:b.service?.mode==='hourly'?'hourly':b.service?.mode==='free'?'free':null;
+    const event=(await eventsFor(this)).find(e=>e.state==='active'&&e.starts<=this.at&&e.ends>this.at);
+    return catalogWrite(this,'catalog-entry',{version:setting.version,eventId:event?.id||null,card:b.card,vehicle:b.vehicle,profile:b.service?.preferred?'preferred':'normal',serviceId,parkingSelected:b.service?.mode==='day_wash'},tx);
+   }
+  }
+  if(path==='checkout'){
+   const stay=await this.active(b.id);if(parse(stay.service).schema===2)return catalogWrite(this,'catalog-checkout',{...b,paymentConfirmed:b.paymentConfirmed===true||Number.isInteger(b.received)&&b.received>=b.expectedTotal},tx);
+  }
+  if(path==='monthly'){
+   const settings=await this.config(),c=parse(settings.body);if(c.catalog){const serviceId=b.mode==='12h'?'monthly500':b.mode==='24h'?'monthly600':b.mode,definition=c.catalog.services.find(s=>s.id===serviceId&&s.active);requireThat(definition&&b.end===b.start+30*86400000&&b.manualDatesConfirmed===true,'Las mensualidades nuevas requieren una modalidad configurada y 30 días de vigencia.');const event=(await eventsFor(this)).find(e=>e.state==='active'&&e.starts<=this.at&&e.ends>this.at);return catalogWrite(this,'catalog-monthly',{version:settings.version,eventId:event?.id||null,profile:'normal',serviceId,vehicle:b.vehicle,start:b.start,datesConfirmed:true,pending:b.payNow===false,paymentConfirmed:b.payNow!==false&&Number.isInteger(b.received)&&b.received>=definition.prices.normal,received:b.received},tx);}
+  }
+  if(path==='monthly-pay'){
+   const contract=await this.store.one('SELECT mode FROM monthly WHERE id=?',b.id);if(contract&&parse(contract.mode).schema===2){const q=await this.store.one('SELECT q.total-coalesce((SELECT sum(cents) FROM charge_allocations WHERE charge_id=q.id),0) balance FROM service_charges q WHERE q.monthly_id=?',b.id);requireThat(q&&Number.isInteger(b.received)&&b.received>=q.balance,'Efectivo insuficiente.');return catalogWrite(this,'monthly-charge-pay',{id:b.id,paymentConfirmed:true,expectedTotal:q.balance,received:b.received},tx);}
+  }
+  const catalogResult=await catalogWrite(this,path,b,tx);if(catalogResult)return catalogResult;
 
   // Baños: cobro independiente de tarjetas, vehículos y pensiones.
   if(path==='bathroom'){
@@ -212,7 +236,7 @@ export class Api{
   if(path==='checkout'){
    const s=await this.active(b.id);this.guardStay(tx,s);
    requireThat(b.vehicleConfirmed===true,'Confirma físicamente el vehículo antes de la salida.');
-   const q=quote(s,this.at);
+   const q=pricing(s,this.at,await eventsFor(this));
    requireThat(amount(b,'expectedTotal')===q.total,'El importe cambió con el tiempo transcurrido. Actualiza la salida y confirma el nuevo total.',409,'TOTAL_CHANGED');
 
    let resolution=b.resolution;
@@ -251,7 +275,9 @@ export class Api{
     tx.write(`UPDATE cards SET state='available',revision=revision+1 WHERE id=? AND state='assigned' AND ${tx.exists()}`,[s.card_id]);
     tx.audit('entry_cancelled',s.id,{reason:why,authorizedBy});
    }else{
-    const service=parse(s.service);requireThat(!!service.wash,'No hay lavado activo.');
+    const service=parse(s.service);
+    if(service.schema===2){requireThat(service.kind==='wash','No hay lavado activo.');const replacement=snapshotService(service.rates,b.replacementServiceId,service.profile,parse(s.vehicle).type,s.entered,await eventsFor(this));requireThat(['hourly','free','pension'].includes(replacement.kind),'Selecciona el servicio de estacionamiento restante.');replacement.customerId=service.customerId;replacement.rateVersion=service.rateVersion;replacement.extras=service.extras;tx.write(`UPDATE stays SET service=?,revision=revision+1 WHERE id=? AND ${tx.exists()}`,[JSON.stringify(replacement),s.id]);tx.audit('cancel_wash',s.id,{reason:why,authorizedBy});return tx.commit();}
+    requireThat(!!service.wash,'No hay lavado activo.');
     if(['day_wash','wash_only'].includes(service.mode)){
      requireThat(['hourly','temporary'].includes(b.replacementMode),'El administrador debe seleccionar la modalidad restante explícitamente.');
      service.mode=b.replacementMode;
@@ -324,7 +350,7 @@ export class Api{
 
   if(path==='config'){
    admin(this.user);
-   const c=validateConfig(b.config),version=integer(b,'version'),why=reason(b);
+   const c=b.config?.catalog?validateCatalog(b.config):validateConfig(b.config),version=integer(b,'version'),why=reason(b);
    c.bathroomPrice=amount({bathroomPrice:c.bathroomPrice??0},'bathroomPrice');
    tx.guard('(SELECT max(version) FROM settings)=?',[version]);
    tx.write(`INSERT INTO settings(version,body,created,actor) SELECT ?,?,?,? WHERE ${tx.exists()}`,[version+1,JSON.stringify(c),this.at,this.user.name]);
@@ -395,7 +421,7 @@ export class Api{
 
   if(path==='backup'){
    admin(this.user);
-   const tables={},names=['settings','users','cards','stays','monthly','payments','bathroom_payments','audit','meta'];
+   const tables={},names=['settings','users','cards','stays','monthly','payments','bathroom_payments','audit','meta','customers','customer_plates','service_charges','settlements','charge_allocations','event_sessions'];
    const rows=await this.store.batch(names.map(name=>this.store.stmt('SELECT * FROM '+name)));
    names.forEach((name,i)=>tables[name]=rows[i].results);
 

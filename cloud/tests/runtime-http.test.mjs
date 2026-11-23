@@ -5,7 +5,7 @@ test('full Worker in workerd: private owner setup, PIN, browser approval, concur
  const privateToken='c'.repeat(64),mf=new Miniflare(convertV4MiniflareOptions({name:'oeste-http',compatibilityDate:'2026-11-16',modules:true,script:readFileSync(new URL('../../build/cloud-worker/worker.js',import.meta.url),'utf8'),d1Databases:{DB:'runtime-http'},bindings:{DATA_KEY:'a'.repeat(64),REQUEST_KEY:'b'.repeat(64),BOOTSTRAP_HASH:await hash(privateToken),BOOTSTRAP_UNTIL:String(Date.now()+3600000),ENVIRONMENT:'staging',METRICS:'safe'}}));
  try{
   const db=await mf.getD1Database('DB');
-  for(const name of ['0001_authority.sql','0002_devices.sql','0003_capacity_60.sql','0004_management.sql','0005_bathrooms.sql','0006_login_identifier.sql','0007_current_login_uniqueness.sql'])await db.exec(runtimeMigrationSql(name));
+  for(const name of ['0001_authority.sql','0002_devices.sql','0003_capacity_60.sql','0004_management.sql','0005_bathrooms.sql','0006_login_identifier.sql','0007_current_login_uniqueness.sql','0008_catalog_accounts.sql'])await db.exec(runtimeMigrationSql(name));
 
   async function call(path,{body,cookie='',csrf='',epoch,key=crypto.randomUUID()}={}){
    const start=performance.now(),headers={Cookie:cookie,'CF-Connecting-IP':'192.0.2.1'};
@@ -84,5 +84,13 @@ test('full Worker in workerd: private owner setup, PIN, browser approval, concur
   assert.equal(access.status,200);assert.equal(access.data.reauthenticate,false);assert.equal((await call('state',ownerAuth)).data.accountLogin,'operatornew');
   assert.equal((await call('login',{cookie:setup.cookie,body:{name:'OwnerCase',password:'65432198'}})).status,401);
   assert.equal((await call('login',{cookie:setup.cookie,body:{name:'OPERATORNEW',password:'97531864'}})).status,200);
+  const c=await call('customer-save',{...ownerAuth,epoch:'1',body:{name:'Cliente ficticio',plates:['SYN123'],active:true}});assert.equal(c.status,200);
+  const version=(await call('state',ownerAuth)).data.version;
+  const incoming=await call('catalog-entry',{...ownerAuth,epoch:'1',body:{version,eventId:null,card:5,profile:'presidencia',customerId:c.data.id,serviceId:'pension12',vehicle:{plate:'SYN123',type:'auto'}}});assert.equal(incoming.status,200,JSON.stringify(incoming.data));
+  const closing=await call('catalog-checkout',{...ownerAuth,epoch:'1',body:{id:incoming.data.id,expectedTotal:5000,vehicleConfirmed:true,onAccount:true}});assert.equal(closing.status,200);assert.equal(closing.data.onAccount,true);
+  assert.equal((await call('account?id='+c.data.id,ownerAuth)).data.balance,5000);
+  const abono=await call('account-pay',{...ownerAuth,epoch:'1',body:{customerId:c.data.id,amount:1000,paymentConfirmed:true}});assert.equal(abono.status,200);
+  assert.equal((await call('account?id='+c.data.id,ownerAuth)).data.balance,4000);
+  await assert.rejects(db.prepare('DELETE FROM settlements').run(),/IMMUTABLE_PAYMENT/);
  }finally{await mf.dispose();}
 });

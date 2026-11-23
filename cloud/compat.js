@@ -1,0 +1,14 @@
+/* ES5 bootstrap: keep a useful recovery screen even if a browser cannot parse the app. */
+(function () {
+ 'use strict';
+ if (!Object.hasOwn) Object.hasOwn=function(o,k){return Object.prototype.hasOwnProperty.call(o,k);};
+ if (!Object.fromEntries) Object.fromEntries=function(entries){var out={};Array.from(entries).forEach(function(e){out[e[0]]=e[1];});return out;};
+ if (!Array.prototype.at) Object.defineProperty(Array.prototype,'at',{value:function(i){i=Number(i)||0;return this[i<0?this.length+i:i];}});
+ if (!String.prototype.replaceAll) Object.defineProperty(String.prototype,'replaceAll',{value:function(a,b){return this.split(a).join(b);}});
+ if (!window.structuredClone) window.structuredClone=function(v){return JSON.parse(JSON.stringify(v));};
+ if (window.Blob&&!Blob.prototype.arrayBuffer) Blob.prototype.arrayBuffer=function(){var blob=this;return new Promise(function(resolve,reject){var reader=new FileReader();reader.onload=function(){resolve(reader.result);};reader.onerror=reject;reader.readAsArrayBuffer(blob);});};
+ if(window.crypto&&!crypto.randomUUID)crypto.randomUUID=function(){var b=new Uint8Array(16);crypto.getRandomValues(b);b[6]=(b[6]&15)|64;b[8]=(b[8]&63)|128;var hex=Array.prototype.map.call(b,function(n){return ('0'+n.toString(16)).slice(-2);}).join('');return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);};
+ if(window.AbortSignal&&!AbortSignal.timeout)AbortSignal.timeout=function(ms){var controller=new AbortController();setTimeout(function(){controller.abort();},ms);return controller.signal;};
+ window.oesteDeviceInfo=function(){var chrome=navigator.userAgent.match(/(?:Chrome|CriOS)\/([0-9.]+)/),android=navigator.userAgent.match(/Android ([0-9.]+)/);return {browserVersion:chrome?chrome[1]:'Otro navegador',android:android?android[1]:null,installed:!!(window.matchMedia&&matchMedia('(display-mode: standalone)').matches),secure:window.isSecureContext,worker:typeof Worker!=='undefined',wasm:typeof WebAssembly!=='undefined',camera:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),storage:(function(){try{var k='oeste-device-check';localStorage.setItem(k,'1');localStorage.removeItem(k);return true;}catch(e){return false;}})()};};
+ setTimeout(function(){var loading=document.getElementById('cloud-loading');if(!loading||loading.hidden||getComputedStyle(loading).display==='none')return;var box=document.createElement('section');box.className='panel';var title=document.createElement('h2');title.textContent='No se completó la carga';var p=document.createElement('p');p.textContent='Abre el enlace en Chrome. Tus registros permanecen en el servidor.';var link=document.createElement('a');link.href='/?recargar='+Date.now();link.className='primary';link.textContent='Volver a cargar';box.appendChild(title);box.appendChild(p);box.appendChild(link);while(loading.firstChild)loading.removeChild(loading.firstChild);loading.appendChild(box);},15000);
+})();

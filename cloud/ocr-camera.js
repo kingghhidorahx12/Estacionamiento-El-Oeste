@@ -25,7 +25,8 @@ async function recognize(){
   let candidates=plateCandidates(data.text);
   if(!candidates.length||(Number.isFinite(data.confidence)&&data.confidence<45)){
    $('#ocr-status').textContent='Comprobando el número de la placa…';
-   try{const alternate=await reader.read(image,{pageSegMode:'11'});candidates=plateCandidates(data.text+'\n'+alternate.text);}catch{}
+   let adjusted;
+   try{adjusted=document.createElement('canvas');const scale=Math.min(2,1600/image.width);adjusted.width=Math.round(image.width*scale);adjusted.height=Math.round(image.height*scale);const ctx=adjusted.getContext('2d');ctx.filter='grayscale(1) contrast(1.4) brightness(1.1)';ctx.drawImage(image,0,0,adjusted.width,adjusted.height);const alternate=await reader.read(adjusted,{pageSegMode:'11'});candidates=plateCandidates(data.text+'\n'+alternate.text);}catch{}finally{if(adjusted){adjusted.width=0;adjusted.height=0;}}
   }
   if(lastPhoto!==image||!$('#ocr-result-label'))return;
   $('#ocr-result-label').hidden=false;$('#ocr-result').value=candidates[0]||'';$('[data-action="use-photo"]').textContent=candidates.length?'Usar esta placa':'Continuar sin lectura';

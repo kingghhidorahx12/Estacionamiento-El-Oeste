@@ -15,8 +15,10 @@ export async function devices(api){
 const countExpressions={
  visits:'(SELECT count(*) FROM stays)',
  active:"(SELECT count(*) FROM stays WHERE state='active')",
- payments:'((SELECT count(*) FROM payments)+(SELECT count(*) FROM bathroom_payments))',
- total:'((SELECT coalesce(sum(total),0) FROM payments)+(SELECT coalesce(sum(total),0) FROM bathroom_payments))',
+ payments:'((SELECT count(*) FROM payments)+(SELECT count(*) FROM bathroom_payments)+(SELECT count(*) FROM settlements))',
+ total:'((SELECT coalesce(sum(total),0) FROM payments)+(SELECT coalesce(sum(total),0) FROM bathroom_payments)+(SELECT coalesce(sum(total),0) FROM settlements))',
+ charges:'(SELECT count(*) FROM service_charges)',
+ allocations:'(SELECT count(*) FROM charge_allocations)',
  monthly:'(SELECT count(*) FROM monthly)',
  bathrooms:'(SELECT count(*) FROM bathroom_payments)',
  bathroomPeople:'(SELECT coalesce(sum(quantity),0) FROM bathroom_payments)',
@@ -33,7 +35,7 @@ export async function deliveryStatus(api){
  const meta=Object.fromEntries((await api.store.all("SELECT id,value FROM meta WHERE id IN ('authority','sourceKind','operationEpoch')")).map(r=>[r.id,r.value]));
  const epoch=meta.operationEpoch||'0';
  const permitted=api.env.ENVIRONMENT==='staging'&&meta.authority==='cloud-test'&&meta.sourceKind==='synthetic';
- const hasData=!!(counts.visits||counts.payments||counts.monthly||counts.bathrooms);
+ const hasData=!!(counts.visits||counts.payments||counts.monthly||counts.bathrooms||counts.charges);
 
  return {
   allowed:permitted&&hasData,
@@ -100,13 +102,13 @@ export async function manage(api,path,b,tx){
 
   tx.write(`INSERT INTO maintenance_reset_gate(operation_id,actor_id) SELECT ?,? WHERE ${tx.exists()}`,[tx.id,api.user.id]);
 
-  for(const table of ['payments','bathroom_payments','stays','monthly','backup_chunks']){
+  for(const table of ['payments','bathroom_payments','charge_allocations','settlements','service_charges','stays','monthly','backup_chunks']){
    tx.write(`DELETE FROM ${table} WHERE ${tx.exists()}`);
   }
 
   tx.write(`UPDATE cards SET state='available',revision=revision+1 WHERE state='assigned' AND ${tx.exists()}`);
 
-  tx.write(`DELETE FROM audit WHERE action IN ('entry','checkout','administrative_resolution','entry_cancelled','cancel_wash','lost_card','replace_lost_card','monthly_manual','monthly_paid','bathroom_payment','receipt_requested') AND ${tx.exists()}`);
+  tx.write(`DELETE FROM audit WHERE action IN ('entry','checkout','administrative_resolution','entry_cancelled','cancel_wash','lost_card','replace_lost_card','monthly_manual','monthly_paid','bathroom_payment','receipt_requested','service_charge','account_payment') AND ${tx.exists()}`);
 
   tx.write(`DELETE FROM operations WHERE id<>? AND ${tx.exists()}`,[tx.id]);
   tx.write(`UPDATE meta SET value=CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE id='operationEpoch' AND ${tx.exists()}`);

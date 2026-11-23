@@ -26,7 +26,7 @@ class LocalPlateReader {
    await this.job('load',{options:{lstmOnly:true,corePath:location.origin+'/vendor',logging:false}});
    await this.job('loadLanguage',{langs:'eng',options:{langPath:location.origin+'/vendor',cacheMethod:'none',gzip:true,lstmOnly:true}});
    await this.job('initialize',{langs:'eng',oem:1,config:{}});
-   await this.job('setParameters',{params:{tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',tessedit_pageseg_mode:'7'}});
+   await this.job('setParameters',{params:{tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ',tessedit_pageseg_mode:'7'}});
    this.pageMode='7';return this;
   })().catch(error=>{if(this.ready===attempt)this.stop(error);throw error;});
   this.ready=attempt;return attempt;
@@ -48,6 +48,7 @@ class LocalPlateReader {
 }
 function plateCandidates(text){
  const rows=String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().split(/\r?\n/),found=new Map();
+ for(let i=0,n=rows.length;i<n-1;i++)if(/^[ A-Z-]{2,6}$/.test(rows[i])&&rows[i].replace(/[^A-Z]/g,'').length<=4&&/^[ -]*\d[ A-Z0-9-]{1,7}$/.test(rows[i+1]))rows.push(rows[i]+' '+rows[i+1]);
  for(const row of rows){
   const parts=row.match(/[A-Z0-9]+(?:-[A-Z0-9]+)*/g)||[];
   for(let i=0;i<parts.length;i++)for(let j=i;j<Math.min(parts.length,i+3);j++){
@@ -55,7 +56,7 @@ function plateCandidates(text){
    if(compact.length>10)break;
    if(compact.length<5||!/[A-Z]/.test(compact)||!/[0-9]/.test(compact))continue;
    const score=/^[A-Z]{3}\d{3}[A-Z]$/.test(compact)?100:/^[A-Z]{3}\d{4}$/.test(compact)?95:/^[A-Z]{3}\d{3}$/.test(compact)?90:/^[A-Z]{2,3}\d{2,5}[A-Z]{0,2}$/.test(compact)?80:/^[A-Z0-9]{6,8}$/.test(compact)?50:10;
-   found.set(value,Math.max(found.get(value)||0,score+Math.min(compact.length,8)/100));
+   found.set(compact,Math.max(found.get(compact)||0,score+Math.min(compact.length,8)/100));
   }
  }
  return [...found].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([value])=>value);

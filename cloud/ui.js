@@ -120,6 +120,7 @@ function home() {
 }
 
 function renderVehicles() {
+  if(state.config.catalog)return catalogRenderVehicles();
   const query = ($('#search')?.value || '')
     .toLocaleLowerCase('es-MX');
 
@@ -204,6 +205,7 @@ function renderVehicles() {
 }
 
 async function adminView() {
+  if(state.config.catalog)return catalogAdminView();
   const r = state.report;
   const c = r.categories;
   const n = state.stays.length;
@@ -565,6 +567,7 @@ async function adminView() {
 }
 
 function entryView(context = {}) {
+  if(state.config.catalog)return catalogEntryView(context);
   const contract = state.monthly.find(m =>
     m.id === context.contractId &&
     m.paid &&
@@ -884,6 +887,7 @@ function entryView(context = {}) {
 }
 
 function updateEntry() {
+  if($('#entry-form')?.dataset.catalog)return catalogUpdateEntry();
   const f = $('#entry-form');
   if (!f) return;
 
@@ -1018,6 +1022,7 @@ function updateEntry() {
 }
 
 function checkoutView(id) {
+  if(JSON.parse(state.stays.find(s=>s.id===id)?.service||'{}').schema===2)return catalogCheckoutView(id);
   const stay = state.stays.find(s => s.id === id);
 
   if (!stay) {
@@ -1182,6 +1187,7 @@ function checkoutView(id) {
 }
 
 function monthlyView() {
+  if(state.config.catalog)return catalogMonthlyView();
   const rows = state.monthly || [];
   const c = state.config;
   const now = state.serverTime;
@@ -1406,6 +1412,7 @@ function cloudMonthlyPicker() {
 
 // Vista del servicio independiente de baños.
 function bathroomView() {
+  if(state.config.catalog)return catalogServicesView('bathroom');
   const price = state.config?.bathroomPrice;
 
   const enabled =
