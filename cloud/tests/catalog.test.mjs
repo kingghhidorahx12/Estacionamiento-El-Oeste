@@ -1,7 +1,12 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {catalogConfig,validateCatalog,snapshotService,pricing,plateKey} from '../lib/catalog.mjs';import {civilEpoch} from '../lib/rules.mjs';
+import {catalogConfig,validateCatalog,snapshotService,pricing,plateKey} from '../lib/catalog.mjs';import {civilEpoch,defaults} from '../lib/rules.mjs';
 import {SqliteD1,seed} from './helpers.mjs';import {Store,operation} from '../lib/store.mjs';import {Api} from '../lib/api.mjs';import {fingerprint} from '../lib/crypto.mjs';
 const config=()=>validateCatalog(catalogConfig()),at=civilEpoch('2026-11-23','07:00'),H=3600000;
+test('catalogue initialization replaces the old midday closing and afternoon hourly entries stay hourly',()=>{
+ const legacy={...defaults(),opening:'08:00',closing:'12:59'},c=validateCatalog(catalogConfig(legacy));assert.equal(legacy.closing,'12:59');assert.equal(c.catalog.opening,'07:00');assert.equal(c.catalog.closing,'20:00');
+ const entered=civilEpoch('2026-11-23','15:28'),s=snapshotService(c,'hourly','normal','auto',entered),stay={entered,service:s};assert.equal(pricing(stay,entered).total,1000);const q=pricing(stay,entered+11*60000);assert.equal(q.total,1500);assert.ok(q.lines.every(l=>l.category==='parking_hourly_normal'));
+ const saved=structuredClone(c);saved.catalog.closing='22:00';assert.equal(catalogConfig(saved).catalog.closing,'22:00');
+});
 test('catalogue keeps unassigned monthly types explicit, supports custom types and preserves normal print prices',()=>{
  const c=config();assert.equal(c.bathroomPrice,700);assert.equal(c.catalog.services.find(s=>s.id==='wash_moto').prices.normal,10000);assert.throws(()=>snapshotService(c,'monthly500','normal','auto',at),/Asigna/);
  assert.equal(snapshotService(c,'bathroom','presidencia','',at).base,700);for(const [type,total]of [['auto',15000],['camioneta',20000],['van',20000],['pickup',23000]]){const wash=snapshotService(c,'wash_'+type,'normal',type,at);assert.equal(pricing({entered:at,service:wash},at+H).total,total-3000);wash.parkingSelected=true;assert.equal(pricing({entered:at,service:wash},at+H).total,total);}

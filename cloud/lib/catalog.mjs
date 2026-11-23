@@ -5,6 +5,9 @@ const HOUR=3600000,DAY=24*HOUR;
 const prices=(normal,preferred=null,presidencia=null)=>({normal,preferred,presidencia});
 export function catalogConfig(original){
  const c=structuredClone(original||defaults());if(c.catalog)return c;
+ // The confirmed schedule replaces legacy trial hours when creating the catalogue.
+ // Existing catalogues and stay snapshots retain their explicitly saved settings.
+ c.opening='07:00';c.closing='20:00';
  const service=(id,name,kind,price,extra={})=>({id,name,kind,active:true,vehicleTypes:[],prices:prices(price),eventPrices:prices(null),parking:'none',addonPrices:prices(c.dayAddon??3000),...extra});
  c.catalog={revision:1,reminderDays:3,opening:c.opening||'07:00',closing:c.closing||'20:00',eventClosing:'03:00',nightRateId:'pension12',overdueShortId:'pension12',overdueLongId:'pension24',
   vehicleTypes:[['auto','Automóvil'],['camioneta','Camioneta'],['moto','Moto'],['pickup','Pickup'],['van','Van']].map(([id,name])=>({id,name,active:true})),
