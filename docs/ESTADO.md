@@ -563,3 +563,31 @@ Publicación final: mismo Worker/UUID y D1, OAuth aislado, versión `4e4add5c-d3
 | cloud-client.js | `f735563d717fed15ee0f87bc428406d155735123426faf17525ec9403e8d92f9` |
 | cloud.css | `4b7185206a623618220e2d27255e2bb2bf6c36ddea447d24de92c2747d3bfce7` |
 | sw.js | `4ade31f23939488041421760392f07bbe2678a4b7482f8f42c41af0f569be8d7` |
+
+
+## Tarifas por servicio, tipos de cliente y evento en Resumen · 23/11/2026
+
+Código: `2dee6c7359e814a1615dc1baf3729459b5706288` incorpora evento desde Resumen y eliminación segura de catálogos; `a83f392ac2fcd7bc583bee126e9cd396f5a46e19` reorganiza Tarifas por servicio y añade tipos de cliente configurables. Revisados los cinco archivos exactos de cada commit de código y su diff preparado; comprobación final contra los valores de Secrets/OAuth sin coincidencias. El borrador anterior `web/ocr.js` se conserva fuera de estos commits; la compilación integra `cloud/ocr.js`. Sin cambios en Android, réplica, El Muelle, APK, Releases, certificados ni manifiestos de actualización.
+
+Tarifas abre Estacionamiento, Lavados, Pensiones, Baños, Eventos, servicios fijos como Extravío, Tipos de vehículo, Clientes y Agregar servicio. Cada servicio filtra por pestañas de cliente. Baños tiene apartado propio y conserva un único precio de $7 para todos; cambiar la pestaña no crea descuentos. Horarios/cierre están en Estacionamiento; aviso y saldo vencido, en Pensiones. Se conservan las superficies, tipografía e identidad EO, con opciones centradas en 2/3/4 columnas según ancho.
+
+Clientes dentro de Tarifas administra tipos, separados de las personas de Presidencia. Permite agregar, renombrar, activar/desactivar y eliminar; Normal permanece activo como base. Los nuevos tipos heredan Normal hasta ajustar sus precios por servicio y permiten seleccionar el esquema horario. No se añaden derechos de crédito: a cuenta continúa limitado a Presidencia. Los desplegables de mensualidades y servicios muestran únicamente tipos activos, ordenados alfabéticamente, con Normal seleccionado al abrir. El acceso de un contrato mensual pagado vigente se conserva si se retira su tipo; las visitas abiertas y sus precios congelados también se conservan.
+
+Eliminar servicios/tipos conserva sus identificadores, precios e historial mediante tombstone. Se impide retirar el último tipo de vehículo/servicio horario y las pensiones todavía referenciadas. Quitar el único vehículo aplicable suspende los servicios dependientes y exige reasignar antes de reactivar. Aplicar al catálogo prepara el borrador; Guardar cambios lo confirma mediante versión, guardas y auditoría transaccionales. No se modifican entradas anteriores ni pagos cerrados.
+
+Resumen ofrece Activar/Finalizar modo evento y usa precios guardados sin guardar otro borrador pendiente. La reactivación del mismo día conserva cobertura y rechaza un cierre desde un diálogo de una fase anterior. Se retiraron los botones duplicados de Operación y Baños de Resumen; permanecen las pestañas superiores y Baños en Operación.
+
+Pruebas afectadas: 23/23 en catálogo, eliminación, tipos de cliente e interfaz; tras el ajuste final de desplegables, build y 8/8 de interfaz. Integración HTTP del Worker real en workerd: 1/1, cubriendo acceso propio, permisos, concurrencia e idempotencia de pago. Dry-run satisfactorio. La integración local no acredita límites CPU de Cloudflare ni hardware físico.
+
+Navegador Edge aislado con Worker/SQLite y datos ficticios: `.dev/config-20261123/browser-result.json` y `final-result.json` verifican evento, reactivación, cancelación, eliminación y alineación. `.dev/services-20261123/browser-result.json`: 38 capturas y 20 comprobaciones de distribución en 320/390/768/1280 px, alta/precios/retiro de un tipo de cliente, cobro exacto y uso de su contrato mensual vigente tras retirarlo, y alta de servicio con sección propia. `selectors-result.json`: dos capturas finales y comprobación de desplegables alfabéticos, sólo activos y selección Normal. Sin errores JS ni desbordamientos horizontales en esas pruebas. Las primeras aperturas aisladas no conectaron a tiempo; la ejecución completada por CDP y la comprobación final sí pasaron. No se comprobó cámara, PWA, impresora ni teléfono físico en este ajuste.
+
+Publicación intermedia `b38286b2-70f3-4340-9fa3-57c5dbff2b1f`; publicación final `15e4a4b6-2909-45ef-b77a-697a060907e3`, interfaz `a33c5253e8a9dc5e`, en [El Oeste](https://eloeste.estacionamiento.workers.dev). Verificada cuenta autorizada y Worker existente UUID `d5ca3e8d0f8c45ddaa90866ebb1ee08b`, con D1 original. Lectura previa confirma configuración versión 8. Sin migraciones SQL, cambios de precios/datos operativos, activación real de eventos, eliminación real de catálogos, reinicio, cambio de autoridad, Secrets, cuentas/PIN, planes o cargos. Los tipos iniciales se completan al leer el catálogo anterior y se persisten cuando el administrador guarda una versión.
+
+Verificación pública: versión de `/health` coincidente; diez assets y tres URL versionadas idénticos a la compilación; `/api/state` anónimo devuelve 401. Evidencia privada: `.dev/services-20261123/{review,target,deployment,publication}`. OCR y tarjetas mantienen sus huellas previas. Los archivos de evidencia y perfiles aislados no se incluyen en Git.
+
+| Asset público modificado | SHA-256 |
+|---|---|
+| index.html | `e77db6cfb47b1ce07f9aa8d3db0475d71b5f0f6a5bf734224b8607bee56cddf9` |
+| app.js | `4eb2caf82df0a52f9487c02e12f0d49319cc03ba87a407a9589ee6c17438505a` |
+| cloud.css | `267b164ea174323964b1ef52aa3a6d7e6d55265f71ed41104a2da62f1c0221c4` |
+| sw.js | `364452a3156f332e92361aa85b06486705113aee3acbe2221fc2a2010d55cbc0` |
