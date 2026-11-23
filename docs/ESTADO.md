@@ -531,3 +531,35 @@ Diez assets públicos y tres URLs versionadas HTTP 200 idénticos al build; heal
 | sw.js | `7126c2d3d1bb89c99028488affb75c7fd0d54e9a5591ab16e0163212c76dcefa` |
 | ocr.js | `19106d052ebc109a2e95afb94e8f593ef18d6e2181389d19d9e092bf26d69ea8` |
 | compat.js | `d5d711e66ccd28ccd993b6ed5d0e1a2af07808b0a59901465738aa86f3b1d54f` |
+
+## Composición, cámaras y corrección de horario · 23/11/2026
+
+Código: `28dda9c5f5337d274994258e576d73c2300827ed` (ocho archivos Cloud revisados) y `eb91536a959dc31e637389bc885627dcd011fb71` (catálogo y prueba de regresión). El borrador previo `web/ocr.js` permanece intacto y excluido. Videos, capturas, fotos ficticias, tokens, configuración privada y datos no forman parte de los commits. Sin cambios en Android, APK, Releases o El Muelle.
+
+El video mostró que el catálogo había generado tres hijos dentro de una fila diseñada para cuatro columnas: la placa quedaba en una columna de tarjeta y se partía. El resumen también colocaba tres métricas en una rejilla de dos columnas. Se corrigieron las estructuras y su distribución, con placas de 22–25 px y totales destacados. Encabezados y controles centrados; formularios y campos acotados; columnas por ancho, ajustes de tarifas distribuidos y controles con objetivos táctiles de al menos 48 px. Cancelar en Servicios tenía acción de cerrar diálogo aunque estaba en una página; ahora navega fuera sin enviar. Se añadió la misma salida a la entrada pendiente y Baños.
+
+Por nuevas instrucciones del propietario, Operación retira Servicios y conserva Clientes y saldos centrado. Baños vuelve a cantidad de personas y confirmar cobro: $7 para todos, sin seleccionar perfil, servicio, forma de registro ni casilla adicional de pago. El precio único se configura en Normal y prevalece sobre diferencias de perfil/evento. Ajuste remoto específico guardado como versión 7; conciliación antes/después conservó registros, cargos, pagos, inventario y autoridad. Evidencia privada: `.dev/layout-20261123/config-activation.json`.
+
+Entrada: placa → cliente/persona → tipo de vehículo → servicio filtrado → confirmar. No muestra servicios hasta seleccionar tipo; ofrece sólo modalidades generales y las asignadas al vehículo elegido. Cambiar el tipo limpia una selección incompatible y sus complementos. Los contratos mensuales vigentes conservan el tipo registrado como dato explícito. Se mantienen tarifas y permisos.
+
+QR pasa a viewport completo, sin franjas laterales ni selector manual duplicado. La detección usa el mismo recorte que el video mostrado. Cerrar o resolver tarde un permiso no deja streams activos. Placas abre la captura nativa de imagen con cámara trasera y después muestra OCR local, recorte y campo de confirmación/corrección. La foto queda en RAM; canvas y URL blob se liberan al cerrar/usarla. No cambia el motor/modelo OCR ni sube fotografías.
+
+Validación: 26 pruebas afectadas de catálogo/UI/OCR aprobadas; dry-run e integración HTTP completa en workerd/D1 aprobados. Tras la instrucción de filtrar por vehículo, ocho verificaciones del ensamblado/UI aprobadas. Tras corregir la inicialización del horario, nueve pruebas de catálogo aprobadas, incluida la regresión de una entrada a las 15:28. No se repitieron Java, Android, réplica ni la suite completa sin cambios.
+
+Edge headless aislado con Worker/SQLite y datos ficticios: 14 pantallas y 16 combinaciones adicionales de ancho/página, a 320/360/768/1280 px; sin desbordamiento horizontal. Cancelar en Servicios, entrada pendiente y diálogos de servicio/tipos/eventos/mensualidad/cliente/salida/anulación/extravío/usuario/reinicio no alteró registros ni dinero. Baños con dos personas confirmó un pago de $14 sin campos adicionales. Evidencia privada: `browser-result.json` y capturas del mismo directorio.
+
+Prueba adicional de navegador: QR completo en vertical/horizontal, sin selector repetido; streams detenidos al cerrar y después de permiso tardío. Tipo de vehículo antes del servicio, lavado de Auto/Camioneta filtrado y selección incompatible limpia. Captura nativa solicitada mediante atributo explícito; cancelación sin pantalla intermedia. Entrega de imagen ficticia al selector, OCR WASM real, revisión manual, aplicación a la placa y liberación de canvas/URL, sin registrar entrada ni dinero ni subir imagen. `camera-result.json`. No acredita la cámara física ni la apertura real de la aplicación de cámara de Android/iPhone; el selector nativo se simuló. El cierre de la instalación Moto/Android 8 continúa pendiente de comprobación física.
+
+Segundo video: Por hora sí se guardaba como tal, pero el catálogo había heredado apertura 08:00/cierre 12:59. El cálculo trataba entradas de las 15:28 como pensión nocturna de $50. La inicialización ahora usa el horario confirmado 07:00–20:00; los catálogos ya configurados mantienen futuras ediciones. Se corrigió la configuración actual como versión 8 y, en un solo lote con guardas de versión/revisión/estado/servicio, cinco estancias abiertas que tenían exactamente ese horario erróneo. Se conservaron servicio, precios, hora de entrada y tarjetas; cada cambio quedó auditado. Tres eran horarias. Lectura posterior verificó los cinco registros y la conservación de importes base e inventario. Sin reiniciar datos ni alterar pagos cerrados o autoridad. Evidencia: `schedule-before.json`, `schedule-repair.json`, `schedule-verification.json`.
+
+Se identificó un cargo cerrado de la tarjeta 29: $50 registrado y $10 correspondiente al tiempo y horario corregidos, sin resolución administrativa previa. Se conserva intacto, pendiente de decisión administrativa; no se generó devolución ni se reescribió su pago.
+
+Publicación final: mismo Worker/UUID y D1, OAuth aislado, versión `4e4add5c-d345-4b1a-b3ca-6908088c4ce1`, interfaz `33e2893c05a31b71`, en [El Oeste](https://eloeste.estacionamiento.workers.dev). La publicación previa de interfaz fue `903b76e7-4ed9-495a-adde-ebdbfc994348`; el último despliegue sólo actualiza la inicialización del servidor y no cambia assets. Sin migraciones SQL adicionales, planes, Secrets, corte de autoridad ni cuentas/PIN modificados. Evidencia: `deployment.txt`, `publication.json`.
+
+| Asset público modificado | SHA-256 |
+|---|---|
+| index.html | `47c993088aedea8d6ef7f58daffad4cf3c34004ef1eda7bae26085567f7aa9da` |
+| app.js | `ac44949ffd2c30049b42fb9ece70ad17899d2d06830b9259e907549d5b712849` |
+| cloud-client.js | `f735563d717fed15ee0f87bc428406d155735123426faf17525ec9403e8d92f9` |
+| cloud.css | `4b7185206a623618220e2d27255e2bb2bf6c36ddea447d24de92c2747d3bfce7` |
+| sw.js | `4ade31f23939488041421760392f07bbe2678a4b7482f8f42c41af0f569be8d7` |
