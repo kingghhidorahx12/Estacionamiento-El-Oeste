@@ -12,7 +12,7 @@ export function catalogConfig(original){
    ...[['auto','Automóvil',12000],['camioneta','Camioneta',17000],['moto','Moto',10000],['pickup','Pickup',20000],['van','Van',17000]].map(([id,name,price])=>service('wash_'+id,'Lavado · '+name,'wash',c.wash?.[id]??price,{vehicleTypes:[id],parking:'addon'})),
    service('pension12','Pensión 12 horas','pension',5000,{durationHours:12}),service('pension24','Pensión 24 horas','pension',6000,{durationHours:24}),
    service('monthly500','Mensualidad $500','monthly',50000,{durationHours:720,needsVehicleAssignment:true}),service('monthly600','Mensualidad $600','monthly',60000,{durationHours:720,needsVehicleAssignment:true}),
-   service('bathroom','Baños','bathroom',700,{vehicleRequired:false,prices:prices(700,null,500)}),service('lost','Extravío','fixed',c.lostCard??10000,{system:'lost'})]};
+   service('bathroom','Baños','bathroom',700,{vehicleRequired:false}),service('lost','Extravío','fixed',c.lostCard??10000,{system:'lost'})]};
  c.bathroomPrice=700;return c;
 }
 export function validateCatalog(c){
@@ -35,6 +35,7 @@ export function validateCatalog(c){
  for(const id of ['auto','camioneta','van','pickup','moto'])if(active('wash_'+id))c.wash[id]=priceOf(active('wash_'+id),'normal');return c;
 }
 export function priceOf(service,profile='normal',event=false,field='prices'){
+ if(service.kind==='bathroom'&&field==='prices')return amount(service.prices,'normal');
  requireThat(PROFILES.includes(profile),'Perfil desconocido.');const base=service[field]||{},over=event&&field==='prices'?service.eventPrices||{}:{};
  const value=over[profile]??(profile==='normal'?over.normal:null)??base[profile]??base.normal;return amount({value},'value');
 }

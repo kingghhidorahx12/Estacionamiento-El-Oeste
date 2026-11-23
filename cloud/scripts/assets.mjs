@@ -31,11 +31,6 @@ replace("function settingsView(){","function settingsView(){if(state?.config?.ca
 replace("function newMonthly(){","function newMonthly(){if(state?.config?.catalog)return catalogNewMonthly();");
 replace("async function routeCard(body){","async function routeCard(body){if(state?.config?.catalog)return catalogRouteCard(body);");
 replace("if(render)await renderTab();","if(render)await renderTab();cloudAuthority();");
-// Match the QR video's actual DOM; it has no .camera-wrap parent.
-replace('<video id="camera" class="gap-top" playsinline muted autoplay></video>','<video id="camera" class="scan-camera gap-top" playsinline muted autoplay></video>');
-replace('Apunta al QR. Una tarjeta libre abre la entrada; una asignada abre su salida.','Apunta al QR de la tarjeta.');
-replace('Lectura en este teléfono. No se registra ningún movimiento al escanear.','El movimiento se registra al confirmarlo.');
-replace('Selecciona el número</option>','Selecciona</option>');
 replace("if(!$('#modal').open)$('#modal').showModal();","if(!$('#modal').open)$('#modal').showModal();$('#modal').scrollTop=0;");
 replace("buttons.forEach(b=>{b.disabled=false;","buttons.forEach(b=>{b.disabled=document.documentElement.classList.contains('cloud-offline')&&b.type==='submit'&&['entry-form','checkout-form'].includes(f.id);");
 replace("['perifericos','print','Periféricos','Impresora USB o LAN']","['perifericos','print','Periféricos','Impresión desde este dispositivo']");
@@ -66,7 +61,7 @@ app=app.replace("function userUpdate(id){const u=state.users.find(u=>u.id===id);
 // Replace whole view functions, never layer duplicate historical declarations.
 // Keep the submitters, delegated actions and API payloads from web unchanged.
 const ui=(await readFile(resolve(root,'cloud/ui.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/ocr-camera.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/catalog-ui.js'),'utf8'))+'\n'+(await readFile(resolve(root,'cloud/remember-users.js'),'utf8'));
-for(const name of ['heading','empty','home','renderVehicles','adminView','entryView','updateEntry','checkoutView','monthlyView','usersView','userUpdate','photo','capture','recognize']){
+for(const name of ['heading','empty','home','renderVehicles','adminView','entryView','updateEntry','checkoutView','monthlyView','usersView','userUpdate','photo','capture','recognize','scan','startCamera','cleanupCamera']){
  const start=app.search(new RegExp('^(?:async )?function '+name+'\\(','m'));
  if(start<0)throw new Error('Missing historical view: '+name);
  const after=app.slice(start+1).search(/\n(?:async )?function \w+\(/);

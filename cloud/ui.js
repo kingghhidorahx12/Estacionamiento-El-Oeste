@@ -12,7 +12,9 @@ function heading(eyebrow, title, subtitle, action = '') {
     'respaldos',
     'actualizaciones',
     'equipo',
-    'perifericos'
+    'perifericos',
+    'clientes',
+    'servicios'
   ].includes(tab)
     ? `<button class="back-link" data-tab="admin">${icon('back')} Resumen</button>`
     : '';
@@ -1412,7 +1414,6 @@ function cloudMonthlyPicker() {
 
 // Vista del servicio independiente de baños.
 function bathroomView() {
-  if(state.config.catalog)return catalogServicesView('bathroom');
   const price = state.config?.bathroomPrice;
 
   const enabled =
@@ -1422,13 +1423,13 @@ function bathroomView() {
   $('#main').innerHTML =
     heading(
       'SERVICIOS',
-      'Acceso a baños',
-      'Registro por persona, independiente de vehículos y tarjetas.'
+      'Baños',
+      'Selecciona cuántas personas entran y confirma el cobro.'
     ) +
     `
     <section class="panel bathroom-panel">
 
-      <h2>Registrar acceso</h2>
+
 
       ${enabled
         ? `
@@ -1490,18 +1491,9 @@ function bathroomView() {
 
             </div>
 
-            <label class="checkbox-row gap-top">
-              <input
-                type="checkbox"
-                name="paymentConfirmed"
-                required>
+            <input type="checkbox" name="paymentConfirmed" checked hidden>
 
-              <span>
-                Confirmo que recibí el efectivo
-              </span>
-            </label>
-
-            <div class="bathroom-actions">
+            <div class="bathroom-actions"><button type="button" class="secondary" data-tab="inicio">Cancelar</button>
 
               <button
                 type="submit"

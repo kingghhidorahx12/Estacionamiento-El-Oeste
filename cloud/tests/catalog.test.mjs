@@ -4,11 +4,13 @@ import {SqliteD1,seed} from './helpers.mjs';import {Store,operation} from '../li
 const config=()=>validateCatalog(catalogConfig()),at=civilEpoch('2026-11-23','07:00'),H=3600000;
 test('catalogue keeps unassigned monthly types explicit, supports custom types and preserves normal print prices',()=>{
  const c=config();assert.equal(c.bathroomPrice,700);assert.equal(c.catalog.services.find(s=>s.id==='wash_moto').prices.normal,10000);assert.throws(()=>snapshotService(c,'monthly500','normal','auto',at),/Asigna/);
- assert.equal(snapshotService(c,'bathroom','presidencia','',at).base,500);for(const [type,total]of [['auto',15000],['camioneta',20000],['van',20000],['pickup',23000]]){const wash=snapshotService(c,'wash_'+type,'normal',type,at);assert.equal(pricing({entered:at,service:wash},at+H).total,total-3000);wash.parkingSelected=true;assert.equal(pricing({entered:at,service:wash},at+H).total,total);}
+ assert.equal(snapshotService(c,'bathroom','presidencia','',at).base,700);for(const [type,total]of [['auto',15000],['camioneta',20000],['van',20000],['pickup',23000]]){const wash=snapshotService(c,'wash_'+type,'normal',type,at);assert.equal(pricing({entered:at,service:wash},at+H).total,total-3000);wash.parkingSelected=true;assert.equal(pricing({entered:at,service:wash},at+H).total,total);}
  c.catalog.vehicleTypes.push({id:'bus',name:'Autobús',active:true});const m=c.catalog.services.find(s=>s.id==='monthly500');m.vehicleTypes=['bus'];assert.equal(snapshotService(validateCatalog(c),'monthly500','normal','bus',at).base,50000);
  c.catalog.services.find(s=>s.id==='hourly').prices.normal=2000;assert.equal(validateCatalog(c).ordinary,2000);assert.equal(plateKey(' abc-123 a\n'),'ABC123A');
  c.catalog.services.find(s=>s.id==='hourly').active=false;assert.throws(()=>validateCatalog(c),/por hora/);
 });
+test('bathroom uses one normal price for all profiles and event settings',()=>{const c=config(),bath=c.catalog.services.find(s=>s.id==='bathroom');bath.prices.presidencia=500;bath.prices.preferred=200;bath.eventPrices.normal=1500;const event={id:'event',starts:at-1,ends:at+H,state:'active'};for(const p of ['normal','preferred','presidencia'])assert.equal(snapshotService(c,'bathroom',p,'',at,[event]).base,700);});
+
 test('normal, preferential and Presidencia have independent hourly windows and time-free prices',()=>{
  const c=config();for(const [p,short,hour,free]of [['normal',1000,1500,5000],['preferred',1000,1000,4000],['presidencia',500,1000,3500]]){
   const s=snapshotService(c,'hourly',p,'auto',at);assert.equal(pricing({entered:at,service:s},at+10*60000).total,short);assert.equal(pricing({entered:at,service:s},at+10*60000+1).total,hour);assert.equal(pricing({entered:at,service:s},at+65*60000).total,hour+short);assert.equal(snapshotService(c,'free',p,'auto',at).base,free);
