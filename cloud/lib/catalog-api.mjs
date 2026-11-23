@@ -1,6 +1,6 @@
 import {admin} from './auth.mjs';
 import {requireThat,amount,integer,line,businessDate,civilEpoch,nextDate,reason,vehicle} from './rules.mjs';
-import {catalogConfig,validateCatalog,snapshotService,pricing,priceOf,plateKey,serviceCategory,PROFILES} from './catalog.mjs';
+import {catalogConfig,validateCatalog,snapshotService,pricing,priceOf,plateKey,serviceCategory} from './catalog.mjs';
 const json=v=>JSON.stringify(v),parse=v=>JSON.parse(v),DAY=86400000;
 export async function eventsFor(api){return api.store.all("SELECT id,business_date,starts,ends,state,created FROM event_sessions WHERE state<>'cancelled' AND ends>=coalesce((SELECT min(entered) FROM stays WHERE state='active'),?) ORDER BY starts",api.at-DAY);}
 export async function customerRows(api){
@@ -31,8 +31,8 @@ function settle(api,tx,charges,cents){
  tx.write(`INSERT INTO settlements(id,total,lines,actor,paid) SELECT ?,?,?,?,? WHERE ${tx.exists()}`,[id,cents,json(lines),api.user.name,api.at]);
  tx.write(`INSERT INTO charge_allocations(payment_id,charge_id,cents) SELECT ?,json_extract(value,'$.id'),json_extract(value,'$.cents') FROM json_each(?) WHERE ${tx.exists()}`,[id,json(allocations)]);return {id,total:cents,lines,actor:api.user.name,paid:api.at};
 }
-async function profileCustomer(api,tx,b){
- requireThat(PROFILES.includes(b.profile),'Selecciona el perfil de cliente.');if(b.profile!=='presidencia'){requireThat(!b.customerId,'El cliente requiere perfil Presidencia.');return null;}
+async function profileCustomer(api,tx,b,config){
+ let allowed=config.catalog.customerTypes.some(p=>p.id===b.profile&&p.active&&!p.deleted);if(!allowed&&b.monthlyId){const m=await api.store.one('SELECT mode,vehicle,start_at,end_at FROM monthly WHERE id=?',b.monthlyId);allowed=!!m&&parse(m.mode).profile===b.profile&&plateKey(parse(m.vehicle).plate)===plateKey(b.vehicle?.plate)&&m.start_at<=api.at&&m.end_at>=api.at;}requireThat(allowed,'Selecciona un tipo de cliente vigente.');if(b.profile!=='presidencia'){requireThat(!b.customerId,'El cliente requiere perfil Presidencia.');return null;}
  const c=await api.store.one('SELECT * FROM customers WHERE id=? AND active=1',b.customerId);requireThat(c,'Selecciona un cliente de Presidencia autorizado.');tx.guard('EXISTS(SELECT 1 FROM customers WHERE id=? AND active=1 AND revision=?)',[c.id,c.revision]);return c;
 }
 export async function catalogWrite(api,path,b,tx){
@@ -41,8 +41,9 @@ export async function catalogWrite(api,path,b,tx){
   admin(api.user);const c=validateCatalog(b.config),previous=await api.config();requireThat(previous.version===integer(b,'version'),'Actualiza la configuración antes de guardar.',409,'CONFIG_CHANGED');
   const old=catalogConfig(parse(previous.body)).catalog;
   for(const s of old.services)requireThat(c.catalog.services.some(v=>v.id===s.id),'Retira los servicios conservando su identificador e historial.');
+  for(const p of old.customerTypes)requireThat(c.catalog.customerTypes.some(v=>v.id===p.id),'Los tipos de cliente eliminados conservan su identificador e historial.');
   for(const t of old.vehicleTypes)requireThat(c.catalog.vehicleTypes.some(v=>v.id===t.id),'Retira los tipos conservando su historial.');
-  tx.guard('(SELECT max(version) FROM settings)=?',[previous.version]);tx.write(`INSERT INTO settings(version,body,created,actor) SELECT ?,?,?,? WHERE ${tx.exists()}`,[previous.version+1,json(c),api.at,api.user.name]);tx.result={version:previous.version+1};tx.audit('catalog_saved',String(previous.version+1),{deletedServices:c.catalog.services.filter(s=>s.deleted&&!old.services.find(v=>v.id===s.id)?.deleted).map(s=>s.id),deletedVehicleTypes:c.catalog.vehicleTypes.filter(t=>t.deleted&&!old.vehicleTypes.find(v=>v.id===t.id)?.deleted).map(t=>t.id)});return tx.commit();
+  tx.guard('(SELECT max(version) FROM settings)=?',[previous.version]);tx.write(`INSERT INTO settings(version,body,created,actor) SELECT ?,?,?,? WHERE ${tx.exists()}`,[previous.version+1,json(c),api.at,api.user.name]);tx.result={version:previous.version+1};tx.audit('catalog_saved',String(previous.version+1),{deletedCustomerTypes:c.catalog.customerTypes.filter(p=>p.deleted&&!old.customerTypes.find(v=>v.id===p.id)?.deleted).map(p=>p.id),deletedServices:c.catalog.services.filter(s=>s.deleted&&!old.services.find(v=>v.id===s.id)?.deleted).map(s=>s.id),deletedVehicleTypes:c.catalog.vehicleTypes.filter(t=>t.deleted&&!old.vehicleTypes.find(v=>v.id===t.id)?.deleted).map(t=>t.id)});return tx.commit();
  }
  if(path==='customer-save'){
   admin(api.user);const name=String(b.name||'').trim(),plates=[...new Set((b.plates||[]).map(plateKey))];requireThat(name.length>=2&&name.length<=100&&plates.length<=30&&plates.every(p=>p.length>=3&&p.length<=20)&&typeof b.active==='boolean','Revisa el nombre y las placas del cliente.');
@@ -80,7 +81,7 @@ export async function catalogWrite(api,path,b,tx){
  if(path==='monthly-charge-pay'){
   admin(api.user);requireThat(b.paymentConfirmed===true,'Confirma el pago recibido.');const q=await api.store.one('SELECT q.*,coalesce((SELECT sum(cents) FROM charge_allocations WHERE charge_id=q.id),0) paid FROM service_charges q WHERE q.monthly_id=?',b.id);requireThat(q&&q.total>q.paid,'Mensualidad pagada o desconocida.');if(b.expectedTotal!=null)requireThat(amount(b,'expectedTotal')===q.total-q.paid,'El saldo cambió. Actualiza antes de confirmar.',409,'TOTAL_CHANGED');tx.guard('(SELECT coalesce(sum(cents),0) FROM charge_allocations WHERE charge_id=?)=?',[q.id,q.paid]);tx.result=settle(api,tx,[q],q.total-q.paid);if(Number.isSafeInteger(b.received))tx.result={...tx.result,received:b.received,change:b.received-tx.result.total};tx.audit('monthly_paid',b.id,{payment:tx.result.id});return tx.commit();
  }
- const settings=await api.config(),config=catalogConfig(parse(settings.body));validateCatalog(config);const events=await eventsFor(api),customer=await profileCustomer(api,tx,b);requireThat(integer(b,'version')===settings.version,'Las tarifas cambiaron. Actualiza antes de confirmar.',409,'CONFIG_CHANGED');requireThat((events.find(e=>e.state==='active'&&e.starts<=api.at&&e.ends>api.at)?.id||null)===(b.eventId||null),'El modo de cobro cambió. Actualiza antes de confirmar.',409,'CONFIG_CHANGED');tx.guard('(SELECT max(version) FROM settings)=?',[settings.version]);
+ const settings=await api.config(),config=catalogConfig(parse(settings.body));validateCatalog(config);const events=await eventsFor(api),customer=await profileCustomer(api,tx,b,config);requireThat(integer(b,'version')===settings.version,'Las tarifas cambiaron. Actualiza antes de confirmar.',409,'CONFIG_CHANGED');requireThat((events.find(e=>e.state==='active'&&e.starts<=api.at&&e.ends>api.at)?.id||null)===(b.eventId||null),'El modo de cobro cambió. Actualiza antes de confirmar.',409,'CONFIG_CHANGED');tx.guard('(SELECT max(version) FROM settings)=?',[settings.version]);
  if(path==='catalog-service'){
   requireThat(!b.onAccount||!!customer,'Sólo Presidencia puede registrar a cuenta.');
   const service=snapshotService(config,b.serviceId,b.profile,b.vehicleType||'',api.at,events),definition=config.catalog.services.find(s=>s.id===b.serviceId);requireThat(service.kind==='bathroom'||service.kind==='fixed'&&service.parking==='none','Este servicio requiere una entrada o contrato.');const quantity=integer(b,'quantity');requireThat(quantity>0&&quantity<=50,'Cantidad de 1 a 50.');const total=service.base*quantity;amount({total},'total');

@@ -1,15 +1,16 @@
 import {requireThat,amount,integer,quote as legacyQuote,hourly,civilEpoch,businessDate,nextDate,dateParts,line,defaults} from './rules.mjs';
 export const PROFILES=['normal','preferred','presidencia'];
+export const defaultCustomerTypes=()=>[{id:'normal',name:'Normal',active:true,calculation:'normal'},{id:'preferred',name:'Preferencial',active:true,calculation:'full_hour'},{id:'presidencia',name:'Presidencia',active:true,calculation:'normal'}];
 export const plateKey=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const HOUR=3600000,DAY=24*HOUR;
 const prices=(normal,preferred=null,presidencia=null)=>({normal,preferred,presidencia});
 export function catalogConfig(original){
- const c=structuredClone(original||defaults());if(c.catalog)return c;
+ const c=structuredClone(original||defaults());if(c.catalog){c.catalog.customerTypes??=defaultCustomerTypes();return c;}
  // The confirmed schedule replaces legacy trial hours when creating the catalogue.
  // Existing catalogues and stay snapshots retain their explicitly saved settings.
  c.opening='07:00';c.closing='20:00';
  const service=(id,name,kind,price,extra={})=>({id,name,kind,active:true,vehicleTypes:[],prices:prices(price),eventPrices:prices(null),parking:'none',addonPrices:prices(c.dayAddon??3000),...extra});
- c.catalog={revision:1,reminderDays:3,opening:c.opening||'07:00',closing:c.closing||'20:00',eventClosing:'03:00',nightRateId:'pension12',overdueShortId:'pension12',overdueLongId:'pension24',
+ c.catalog={revision:1,customerTypes:defaultCustomerTypes(),reminderDays:3,opening:c.opening||'07:00',closing:c.closing||'20:00',eventClosing:'03:00',nightRateId:'pension12',overdueShortId:'pension12',overdueLongId:'pension24',
   vehicleTypes:[['auto','Automóvil'],['camioneta','Camioneta'],['moto','Moto'],['pickup','Pickup'],['van','Van']].map(([id,name])=>({id,name,active:true})),
   services:[service('hourly','Por hora','hourly',c.ordinary??1500,{prices:prices(c.ordinary??1500,c.preferred??1000,1000),shortPrices:prices(c.normalPartial??1000,null,500)}),service('free','Tiempo libre','free',c.freeNormal??5000,{prices:prices(c.freeNormal??5000,c.freePreferred??4000,3500)}),
    ...[['auto','Automóvil',12000],['camioneta','Camioneta',17000],['moto','Moto',10000],['pickup','Pickup',20000],['van','Van',17000]].map(([id,name,price])=>service('wash_'+id,'Lavado · '+name,'wash',c.wash?.[id]??price,{vehicleTypes:[id],parking:'addon'})),
@@ -19,13 +20,13 @@ export function catalogConfig(original){
  c.bathroomPrice=700;return c;
 }
 export function validateCatalog(c){
- requireThat(c&&typeof c==='object'&&c.catalog,'Catálogo inválido.');const k=c.catalog;
+ requireThat(c&&typeof c==='object'&&c.catalog,'Catálogo inválido.');const k=c.catalog;k.customerTypes??=defaultCustomerTypes();
  requireThat(Array.isArray(k.vehicleTypes)&&k.vehicleTypes.length>0&&k.vehicleTypes.length<=100,'Registra de 1 a 100 tipos de vehículo.');
  requireThat(Array.isArray(k.services)&&k.services.length>0&&k.services.length<=200,'Registra de 1 a 200 servicios.');
  const ids=new Set(),typeIds=new Set();const identity=(v,set)=>{requireThat(/^[a-zA-Z0-9_-]{1,50}$/.test(v.id||'')&&!set.has(v.id)&&typeof v.name==='string'&&v.name.trim().length>0&&v.name.length<=100&&typeof v.active==='boolean','Nombre o identificador inválido o repetido.');requireThat(v.deleted==null||typeof v.deleted==='boolean'&&(!v.deleted||!v.active),'Una opción eliminada no puede estar activa.');set.add(v.id);};
- for(const t of k.vehicleTypes)identity(t,typeIds);
+ for(const t of k.vehicleTypes)identity(t,typeIds);const customerIds=new Set();requireThat(Array.isArray(k.customerTypes)&&k.customerTypes.length>0&&k.customerTypes.length<=50,'Registra de 1 a 50 tipos de cliente.');for(const p of k.customerTypes){identity(p,customerIds);requireThat(['normal','full_hour'].includes(p.calculation),'Selecciona el cálculo horario del cliente.');}requireThat(k.customerTypes.some(p=>p.id==='normal'&&p.active&&!p.deleted&&p.calculation==='normal'),'Normal es el precio base y debe permanecer activo.');for(const p of k.customerTypes)if(PROFILES.includes(p.id))requireThat(p.calculation===(p.id==='preferred'?'full_hour':'normal'),'Conserva el cálculo confirmado de '+p.name+'.');
  requireThat(k.vehicleTypes.some(t=>t.active&&!t.deleted),'Conserva al menos un tipo de vehículo activo.');
- const checkPrices=(p,nullable=true)=>{requireThat(p&&typeof p==='object','Configura los precios por perfil.');for(const id of PROFILES)if(p[id]!=null)amount(p,id);else requireThat(nullable,'Falta un precio normal.');};
+ const checkPrices=(p,nullable=true)=>{requireThat(p&&typeof p==='object','Configura los precios por perfil.');for(const [id,value]of Object.entries(p)){requireThat(customerIds.has(id),'Precio de un tipo de cliente desconocido.');if(value!=null)amount(p,id);else requireThat(nullable,'Falta un precio normal.');}};
  for(const s of k.services){identity(s,ids);requireThat(['hourly','free','wash','pension','monthly','bathroom','fixed'].includes(s.kind),'Tipo de cobro inválido.');checkPrices(s.prices);amount(s.prices,'normal');checkPrices(s.eventPrices);requireThat(Array.isArray(s.vehicleTypes)&&s.vehicleTypes.every(id=>typeIds.has(id)),'Tipo de vehículo desconocido.');requireThat(['none','included','addon'].includes(s.parking),'Cobertura de estacionamiento inválida.');checkPrices(s.addonPrices);amount(s.addonPrices,'normal');if(s.kind==='hourly'){checkPrices(s.shortPrices);amount(s.shortPrices,'normal');for(const p of PROFILES)if(p!=='preferred')requireThat(priceOf(s,p,false,'shortPrices')<=priceOf(s,p),'La fracción no puede superar la hora.');}if(['pension','monthly'].includes(s.kind))requireThat(Number.isInteger(s.durationHours)&&s.durationHours>0&&s.durationHours<=8760,'Duración inválida.');}
  for(const key of ['opening','closing','eventClosing'])requireThat(/^([01]\d|2[0-3]):[0-5]\d$/.test(k[key]||''),'Configura los horarios.');requireThat(k.opening!==k.closing&&k.opening!==k.eventClosing,'Apertura y cierre deben ser distintos.');
  requireThat(Number.isInteger(k.reminderDays)&&k.reminderDays>=0&&k.reminderDays<=365,'Aviso de 0 a 365 días.');
@@ -42,7 +43,7 @@ export function validateCatalog(c){
 }
 export function priceOf(service,profile='normal',event=false,field='prices'){
  if(service.kind==='bathroom'&&field==='prices')return amount(service.prices,'normal');
- requireThat(PROFILES.includes(profile),'Perfil desconocido.');const base=service[field]||{},over=event&&field==='prices'?service.eventPrices||{}:{};
+ requireThat(/^[a-zA-Z0-9_-]{1,50}$/.test(profile),'Perfil desconocido.');const base=service[field]||{},over=event&&field==='prices'?service.eventPrices||{}:{};
  const value=over[profile]??(profile==='normal'?over.normal:null)??base[profile]??base.normal;return amount({value},'value');
 }
 export const serviceCategory=s=>s.id.startsWith('wash_')?s.id:s.kind==='hourly'?'parking_hourly_normal':s.kind==='free'?'time_free_normal':s.kind==='pension'?'pension_temporary':s.kind==='monthly'?'pension_monthly':s.kind==='bathroom'?'bathroom':s.system==='lost'?'lost_card':'service_'+s.id;
@@ -56,14 +57,14 @@ export function windowFor(date,k,events=[]){
  return {opening,closing:event?Math.max(ordinary,event.ends):ordinary,nextOpening:civilEpoch(nextDate(date),k.opening),event};
 }
 export function snapshotService(config,id,profile,vehicleType,at,events=[]){
- const k=config.catalog,s=k.services.find(s=>s.id===id&&s.active);requireThat(s,'Servicio retirado o desconocido.');
+ const k=config.catalog,customerType=(k.customerTypes||defaultCustomerTypes()).find(p=>p.id===profile&&p.active&&!p.deleted),s=k.services.find(s=>s.id===id&&s.active);requireThat(customerType,'Selecciona un tipo de cliente vigente.');requireThat(s,'Servicio retirado o desconocido.');
  requireThat(!s.vehicleTypes.length||s.vehicleTypes.includes(vehicleType),'El servicio no corresponde al tipo de vehículo.');
  if(s.kind==='monthly')requireThat(!s.needsVehicleAssignment||s.vehicleTypes.length,'Asigna los tipos de vehículo de esta mensualidad en Tarifas.');
- const event=events.find(e=>e.state==='active'&&e.starts<=at&&e.ends>at),selected=k,tariff=s;
+ const event=events.find(e=>e.state==='active'&&e.starts<=at&&e.ends>at),fullHour=customerType.calculation==='full_hour',tariff=s;
  const short=k.services.find(v=>v.id===k.overdueShortId),long=k.services.find(v=>v.id===k.overdueLongId),night=k.services.find(v=>v.id===k.nightRateId),hour=s.kind==='hourly'?s:k.services.find(v=>v.id==='hourly'&&v.active)||k.services.find(v=>v.kind==='hourly'&&v.active);
  requireThat(short&&long&&night&&hour,'Completa las reglas de estacionamiento y pensión.');
- return {schema:2,mode:s.kind==='pension'?'temporary':s.kind==='wash'?'wash_only':s.kind,serviceId:s.id,serviceLabel:s.name,kind:s.kind,profile,preferred:profile==='preferred',base:priceOf(tariff,profile,!!event),category:s.kind==='free'?'time_free_'+(profile==='preferred'?'preferred':profile):serviceCategory(s),parking:s.parking,addon:priceOf(s,profile,false,'addonPrices'),durationHours:s.durationHours||0,
-  hourlyRate:priceOf(hour,profile),shortRate:profile==='preferred'?priceOf(hour,profile):priceOf(hour,profile,false,'shortPrices'),initialHourlyRate:priceOf(hour,profile,!!event),initialShortRate:profile==='preferred'?priceOf(hour,profile,!!event):Math.min(priceOf(hour,profile,false,'shortPrices'),priceOf(hour,profile,!!event)),
+ return {schema:2,mode:s.kind==='pension'?'temporary':s.kind==='wash'?'wash_only':s.kind,serviceId:s.id,serviceLabel:s.name,kind:s.kind,profile,profileName:customerType.name,hourScheme:customerType.calculation,preferred:profile==='preferred',base:priceOf(tariff,profile,!!event),category:s.kind==='free'?'time_free_'+(profile==='preferred'?'preferred':profile):serviceCategory(s),parking:s.parking,addon:priceOf(s,profile,false,'addonPrices'),durationHours:s.durationHours||0,
+  hourlyRate:priceOf(hour,profile),shortRate:fullHour?priceOf(hour,profile):Math.min(priceOf(hour,profile,false,'shortPrices'),priceOf(hour,profile)),initialHourlyRate:priceOf(hour,profile,!!event),initialShortRate:fullHour?priceOf(hour,profile,!!event):Math.min(priceOf(hour,profile,false,'shortPrices'),priceOf(hour,profile,!!event)),
   shortPension:{hours:short.durationHours,price:priceOf(short,profile,!!event)},longPension:{hours:long.durationHours,price:priceOf(long,profile,!!event)},nightPrice:priceOf(night,profile,!!event),schedule:{opening:k.opening,closing:k.closing},eventId:event?.id||null,rates:config};
 }
 export function pricing(stay,at,events=[]){
@@ -86,8 +87,8 @@ export function pricing(stay,at,events=[]){
     const w=windowFor(date,s.schedule,events);if(w.opening>at)break;const start=Math.max(stay.entered,w.opening),end=Math.min(at,w.closing),initial=stay.entered>=w.opening&&stay.entered<w.closing;
     if(end>=start&&(end>start||at===stay.entered)&&at>=w.opening&&(s.kind==='hourly'||!initial)){
      const rate=initial?s.initialHourlyRate:s.hourlyRate,short=initial?s.initialShortRate:s.shortRate;
-     const cents=hourly(end-start,s.profile==='preferred',{ordinary:rate,preferred:rate,preferredFullHour:true,normalFromStart:true,normalPartial:short,graceMinutes:10});
-     add(s.profile==='normal'?'parking_hourly_normal':s.profile==='preferred'?'parking_hourly_preferred':'parking_hourly_presidencia','Estacionamiento por hora',cents,start,end);
+     const cents=hourly(end-start,s.hourScheme==='full_hour'||!s.hourScheme&&s.profile==='preferred',{ordinary:rate,preferred:rate,preferredFullHour:true,normalFromStart:true,normalPartial:short,graceMinutes:10});
+     add('parking_hourly_'+s.profile,'Estacionamiento por hora',cents,start,end);
     }
     const nightStart=Math.max(stay.entered,w.closing),nightEnd=Math.min(at,w.nextOpening);if(nightEnd>nightStart)add('pension_temporary','Pensión nocturna',s.nightPrice,nightStart,nightEnd);
    }
