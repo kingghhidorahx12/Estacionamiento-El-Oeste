@@ -14,7 +14,7 @@ export function catalogConfig(original){
   vehicleTypes:[['auto','Automóvil'],['camioneta','Camioneta'],['moto','Moto'],['pickup','Pickup'],['van','Van']].map(([id,name])=>({id,name,active:true})),
   services:[service('hourly','Por hora','hourly',c.ordinary??1500,{prices:prices(c.ordinary??1500,c.preferred??1000,1000),shortPrices:prices(c.normalPartial??1000,null,500)}),service('free','Tiempo libre','free',c.freeNormal??5000,{prices:prices(c.freeNormal??5000,c.freePreferred??4000,3500)}),
    ...[['auto','Automóvil',12000],['camioneta','Camioneta',17000],['moto','Moto',10000],['pickup','Pickup',20000],['van','Van',17000]].map(([id,name,price])=>service('wash_'+id,'Lavado · '+name,'wash',c.wash?.[id]??price,{vehicleTypes:[id],parking:'addon'})),
-   service('pension12','Pensión 12 horas','pension',7000,{durationHours:12}),service('pension24','Pensión 24 horas','pension',8000,{durationHours:24,priceStatus:'provisional'}),
+   service('pension12','Pensión 12 horas (noche)','pension',7000,{durationHours:12}),service('pension24','Pensión 24 horas','pension',8000,{durationHours:24,priceStatus:'provisional'}),
    service('monthly500','Mensualidad 12 horas','monthly',60000,{durationHours:720,visitHours:12,needsVehicleAssignment:false}),service('monthly600','Mensualidad 24 horas','monthly',70000,{durationHours:720,visitHours:24,needsVehicleAssignment:false}),
    service('bathroom','Baños','bathroom',700,{vehicleRequired:false}),service('lost','Extravío','fixed',c.lostCard??10000,{system:'lost'})]};
  c.bathroomPrice=700;return c;
@@ -34,7 +34,7 @@ export function validateCatalog(c){
  for(const s of k.services)if(s.active&&s.vehicleTypes.length)requireThat(s.vehicleTypes.some(id=>k.vehicleTypes.some(t=>t.id===id&&!t.deleted)),'El servicio '+s.name+' requiere un tipo de vehículo que no esté eliminado.');
  requireThat(k.services.some(s=>s.active&&s.kind==='hourly'),'Conserva un servicio por hora para cobrar al reabrir.');
  for(const key of ['nightRateId','overdueShortId','overdueLongId'])requireThat(k.services.some(s=>s.id===k[key]&&s.active&&s.kind==='pension'),'Selecciona las pensiones para noche y vencimiento.');
- const short=k.services.find(s=>s.id===k.overdueShortId),long=k.services.find(s=>s.id===k.overdueLongId);requireThat(short.durationHours<long.durationHours,'El periodo corto debe ser menor que el largo.');
+ const short=k.services.find(s=>s.id===k.overdueShortId),long=k.services.find(s=>s.id===k.overdueLongId);requireThat(short.id===long.id||short.durationHours<long.durationHours,'Selecciona el mismo periodo para repetirlo, o uno de mayor duración para continuar.');
  c.temporary={price:priceOf(short,'normal'),hours:short.durationHours,status:'confirmed'};
  // Keep public QR cards and historical clients reading the normal tariff fields.
  const active=id=>k.services.find(s=>s.id===id&&s.active);for(const [id,key]of [['hourly','ordinary'],['free','freeNormal'],['bathroom','bathroomPrice'],['lost','lostCard']])if(active(id))c[key]=priceOf(active(id),'normal');

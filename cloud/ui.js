@@ -16,7 +16,7 @@ function heading(eyebrow, title, subtitle, action = '') {
     'clientes',
     'servicios'
   ].includes(tab)
-    ? `<button class="back-link" data-tab="admin">${icon('back')} Resumen</button>`
+    ? `<button class="back-link" data-tab="${tab==='pensiones'?'inicio':'admin'}">${icon('back')} ${tab==='pensiones'?'Operación':'Resumen'}</button>`
     : '';
 
   return `

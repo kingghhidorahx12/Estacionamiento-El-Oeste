@@ -25,7 +25,7 @@ replace("password:f.elements.password.value}","password:f.elements.password.valu
 replace("csrf=state.csrf;$('#login')","csrf=state.csrf;cloudRecover();$('#login')");
 replace("csrf=state.csrf;cloudRecover();","csrf=state.csrf;catalogHydrate();cloudRecover();");
 replace("const views={inicio:home,","const views={clientes:catalogCustomersView,servicios:catalogServicesView,inicio:home,");
-replace("['inicio','entrada','historial','banos'].includes(next)","['inicio','entrada','historial','banos','clientes','servicios'].includes(next)");
+replace("['inicio','entrada','historial','banos'].includes(next)","['inicio','entrada','historial','banos','clientes','servicios','pensiones'].includes(next)");
 replace("function showLogin(){","function showLogin(){rememberedLogin();");
 replace("function settingsView(){","function settingsView(){if(state?.config?.catalog)return catalogSettings();");
 replace("function newMonthly(){","function newMonthly(){if(state?.config?.catalog)return catalogNewMonthly();");
