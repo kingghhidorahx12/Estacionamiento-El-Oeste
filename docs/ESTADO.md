@@ -611,3 +611,29 @@ Por solicitud expresa del propietario se identificó el único cargo indicado de
 | app.js | `de6a1fdda228175e29146e88aecfae1bd94471bd346062a575a88c64aabbc8cf` |
 | cloud.css | `059cb59ffda02ae0d0be962af5ca232d8fa9c9bebaccb5ce897799e659312e87` |
 | sw.js | `10361948b4f736fbdc186e44ac7013c6b4f5e16314867fdac7ef1abd665fe867` |
+
+
+## Número de tarjeta visible y pensiones por visita · 24/11/2026
+
+Código: `0f77857730f7c82a2ef1eff058394a258a9398df`. Revisados los siete archivos exactos de Cloud y el diff preparado contra Secrets/OAuth reales, sin coincidencias. El borrador previo `web/ocr.js` permanece fuera del commit. Sin modificaciones en Android, El Muelle, réplica, QR, APK/Releases, certificados o claves.
+
+La lista muestra el número una sola vez, grande y a la izquierda de placa/servicio, conservando perfil y modalidad separados. No lleva icono de tarjeta ni número repetido en la etiqueta. Las filas usan cuatro columnas donde caben; a 320 px el importe se distribuye bajo los datos para conservar espacio y el botón de 48 px. Se verificaron provisionales P01 y textos largos, sin importar estilos históricos ni cambiar la identidad EO.
+
+Confirmación del propietario: mensualidad de 12 horas por visita $600; mensualidad de 24 horas por visita $700; horas contadas desde cada entrada, sin turno nocturno fijo. Se conserva la vigencia contractual de 30 días. Noche y temporal de 12 horas normales $70; temporal de 24 horas $80 provisional, indicada expresamente como tal y editable en Tarifas. Se conservaron IDs de servicio existentes y precios particulares de otros perfiles/eventos. Los tipos de vehículo se mantienen configurables como filtro opcional.
+
+La instantánea mensual incorpora visitHours independientemente de durationHours=720. Para una visita cubierta se usa el menor entre fin del contrato y entrada más horas incluidas; después se calcula saldo vencido de pensión, sin tarifa horaria ni repetir la mensualidad ya pagada. Cada nueva visita comienza su contador. Contratos y estancias anteriores sin ese campo conservan su cobertura anterior. Formularios, resumen de entrada, contratos y salida explican el límite por visita y distinguen visita excedida de contrato vencido.
+
+Pruebas: 22/22 afectadas de catálogo, perfiles, mensualidades y UI; 9/9 finales de UI más integración HTTP real local en workerd (8+1). Se actualizaron expectativas de importes de las pruebas antiguas, incluido el cierre HTTP de $50 a $70. Cobertura: frontera exacta 12/24 h, reinicio por visita, fin de contrato anterior al límite, 30 días, pago único de mensualidad, conservación de contrato/visita al editar precios y condiciones antiguas sin límite retroactivo. Dry-run satisfactorio.
+
+Navegador Edge aislado con Worker/SQLite y datos ficticios: nueve capturas, alta de mensualidad de $600 para Moto, entrada cubierta y visita excedida con pensión; precios $70/$80 y $600/$700 y leyenda provisional. Revisión final de distribución en 320/390/768/1280 px, incluyendo que número, placa, importe y flecha permanecen dentro de la fila. Se corrigió una sobrescritura móvil de la cuadrícula detectada al revisar capturas y se verificó el resultado. No se probaron cámara, PWA, impresora ni teléfono físicos; no se acredita Safari por simular el ancho. Evidencia privada: `.dev/pensions-20261124/{browser-result,layout-result,review}.json`.
+
+Se publicó en el mismo Worker/UUID, versión `438ebe71-f2c9-4116-8a51-f001ad54e2c6`, interfaz `6b2871c00d57dec0`, en [El Oeste](https://eloeste.estacionamiento.workers.dev). Diez assets y tres URL versionadas coinciden con el build; `/api/state` anónimo 401. Sin migraciones SQL ni cambios de autoridad, planes, cuentas/PIN o permisos.
+
+La configuración pasó de versión 17 a 18 mediante Api/Transaction, hora D1, idempotencia y guarda de versión, después de publicar el código. El adaptador remoto limitó las tablas mutables a settings/operations/tx_guard/audit y preservó enlaces a pensión nocturna y saldo vencido. Lectura posterior confirmó los cuatro importes, las horas por visita y el estado provisional, junto a coincidencia exacta con el documento guardado. Huellas previas/posteriores idénticas para estancias e instantáneas, contratos, pagos, abonos, baños, tarjetas y usuarios. Los nuevos importes se aplican a operaciones/contratos futuros. Huella de configuración `7acd3fb9f77249be9628f801b47186edc9fa724622764874f914ff2cbe600d9a`; evidencia privada: config-before/config-operation/config-result/deployment/publication. Los cuerpos, identificadores de petición y datos operativos privados no se incluyen en Git.
+
+| Asset público modificado | SHA-256 |
+|---|---|
+| index.html | `23e981a653922c368058bb6c9170c32ec5d82746a681b4d382b3c3938e1b25bd` |
+| app.js | `eaa9f3c0938c9bbe8e7a6b058964380df6f9449633bd35a74efa25d214ca037a` |
+| cloud.css | `66e022dd2c1c85ece4b9a6d90540735f5348a53b50e3c5e4013f3c54457066ee` |
+| sw.js | `36f4bfe781c938d7e13f7270ccf9c0ba80a896a650f5d49b002fe46b714813f2` |
