@@ -31,12 +31,14 @@ function settle(api,tx,charges,cents){
  tx.write(`INSERT INTO settlements(id,total,lines,actor,paid) SELECT ?,?,?,?,? WHERE ${tx.exists()}`,[id,cents,json(lines),api.user.name,api.at]);
  tx.write(`INSERT INTO charge_allocations(payment_id,charge_id,cents) SELECT ?,json_extract(value,'$.id'),json_extract(value,'$.cents') FROM json_each(?) WHERE ${tx.exists()}`,[id,json(allocations)]);return {id,total:cents,lines,actor:api.user.name,paid:api.at};
 }
-async function profileCustomer(api,tx,b,config){
+async function profileCustomer(api,tx,b,config,allowContract=false){
  let allowed=config.catalog.customerTypes.some(p=>p.id===b.profile&&p.active&&!p.deleted);if(!allowed&&b.monthlyId){const m=await api.store.one('SELECT mode,vehicle,start_at,end_at FROM monthly WHERE id=?',b.monthlyId);allowed=!!m&&parse(m.mode).profile===b.profile&&plateKey(parse(m.vehicle).plate)===plateKey(b.vehicle?.plate)&&m.start_at<=api.at&&m.end_at>=api.at;}requireThat(allowed,'Selecciona un tipo de cliente vigente.');if(b.profile!=='presidencia'){requireThat(!b.customerId,'El cliente requiere perfil Presidencia.');return null;}
- const c=await api.store.one('SELECT * FROM customers WHERE id=? AND active=1',b.customerId);requireThat(c,'Selecciona un cliente de Presidencia autorizado.');tx.guard('EXISTS(SELECT 1 FROM customers WHERE id=? AND active=1 AND revision=?)',[c.id,c.revision]);return c;
+ const c=await api.store.one('SELECT * FROM customers WHERE id=?',b.customerId);let covered=false;
+ if(c&&!c.active&&b.monthlyId&&allowContract){const m=await api.store.one('SELECT mode,vehicle,start_at,end_at FROM monthly WHERE id=?',b.monthlyId),mode=m&&parse(m.mode);covered=!!m&&mode.customerId===c.id&&mode.profile==='presidencia'&&plateKey(parse(m.vehicle).plate)===plateKey(b.vehicle?.plate)&&m.start_at<=api.at&&m.end_at>=api.at;}
+ requireThat(c&&(c.active&&!c.deleted_at||covered),'Selecciona un cliente de Presidencia autorizado.');tx.guard('EXISTS(SELECT 1 FROM customers WHERE id=? AND revision=?)',[c.id,c.revision]);return c;
 }
 export async function catalogWrite(api,path,b,tx){
- const routes=['catalog-save','customer-save','event-start','event-end','catalog-entry','catalog-checkout','catalog-monthly','catalog-service','account-pay','account-charge-void','monthly-charge-pay'];if(!routes.includes(path))return null;
+ const routes=['catalog-save','customer-save','customer-delete','event-start','event-end','catalog-entry','catalog-checkout','catalog-monthly','catalog-service','account-pay','account-charge-void','monthly-charge-pay'];if(!routes.includes(path))return null;
  if(path==='catalog-save'){
   admin(api.user);const c=validateCatalog(b.config),previous=await api.config();requireThat(previous.version===integer(b,'version'),'Actualiza la configuración antes de guardar.',409,'CONFIG_CHANGED');
   const old=catalogConfig(parse(previous.body)).catalog;
@@ -47,11 +49,17 @@ export async function catalogWrite(api,path,b,tx){
  }
  if(path==='customer-save'){
   admin(api.user);const name=String(b.name||'').trim(),plates=[...new Set((b.plates||[]).map(plateKey))];requireThat(name.length>=2&&name.length<=100&&plates.length<=30&&plates.every(p=>p.length>=3&&p.length<=20)&&typeof b.active==='boolean','Revisa el nombre y las placas del cliente.');
-  const id=b.id||crypto.randomUUID(),old=b.id?await api.store.one('SELECT * FROM customers WHERE id=?',id):null;requireThat(!b.id||old,'Cliente desconocido.');
+  const id=b.id||crypto.randomUUID(),old=b.id?await api.store.one('SELECT * FROM customers WHERE id=?',id):null;requireThat(!b.id||old&&!old.deleted_at,'Cliente desconocido o eliminado.');
   for(const p of plates)requireThat(!await api.store.one('SELECT plate FROM customer_plates WHERE plate=? AND customer_id<>?',p,id),'Una placa ya está asignada a otra persona.');
   if(old){tx.guard('EXISTS(SELECT 1 FROM customers WHERE id=? AND revision=?)',[id,old.revision]);tx.write(`UPDATE customers SET name=?,active=?,revision=revision+1 WHERE id=? AND ${tx.exists()}`,[name,b.active?1:0,id]);tx.write(`DELETE FROM customer_plates WHERE customer_id=? AND ${tx.exists()}`,[id]);}
   else tx.write(`INSERT INTO customers(id,name,active,created) SELECT ?,?,?,? WHERE ${tx.exists()}`,[id,name,b.active?1:0,api.at]);
   if(b.active)for(const p of plates)tx.write(`INSERT INTO customer_plates(plate,customer_id) SELECT ?,? WHERE ${tx.exists()}`,[p,id]);tx.result={id};tx.audit('customer_saved',id,{active:b.active});return tx.commit();
+ }
+ if(path==='customer-delete'){
+  admin(api.user);requireThat(b.confirmed===true,'Confirma eliminar el cliente.');const c=await api.store.one('SELECT * FROM customers WHERE id=?',b.id);requireThat(c&&!c.deleted_at,'Cliente desconocido o eliminado.');requireThat(integer(b,'revision')===c.revision,'El cliente cambió. Actualiza antes de eliminarlo.',409,'CONFLICT');
+  tx.guard('EXISTS(SELECT 1 FROM customers WHERE id=? AND revision=? AND deleted_at IS NULL)',[c.id,c.revision]);
+  tx.write(`UPDATE customers SET active=0,deleted_at=?,revision=revision+1 WHERE id=? AND ${tx.exists()}`,[api.at,c.id]);tx.write(`DELETE FROM customer_plates WHERE customer_id=? AND ${tx.exists()}`,[c.id]);
+  tx.result={id:c.id,deleted:true};tx.audit('customer_deleted',c.id,{});return tx.commit();
  }
  if(path==='event-start'){
   admin(api.user);const settings=await api.config(),c=catalogConfig(parse(settings.body));validateCatalog(c);const date=String(b.date||businessDate(api.at)),closing=b.closing||c.catalog.eventClosing;
@@ -88,7 +96,7 @@ export async function catalogWrite(api,path,b,tx){
  if(path==='monthly-charge-pay'){
   admin(api.user);requireThat(b.paymentConfirmed===true,'Confirma el pago recibido.');const q=await api.store.one('SELECT q.*,coalesce((SELECT sum(cents) FROM charge_allocations WHERE charge_id=q.id),0) paid FROM service_charges q WHERE q.monthly_id=?',b.id);requireThat(q&&q.total>q.paid,'Mensualidad pagada o desconocida.');if(b.expectedTotal!=null)requireThat(amount(b,'expectedTotal')===q.total-q.paid,'El saldo cambió. Actualiza antes de confirmar.',409,'TOTAL_CHANGED');tx.guard('(SELECT coalesce(sum(cents),0) FROM charge_allocations WHERE charge_id=?)=?',[q.id,q.paid]);tx.result=settle(api,tx,[q],q.total-q.paid);if(Number.isSafeInteger(b.received))tx.result={...tx.result,received:b.received,change:b.received-tx.result.total};tx.audit('monthly_paid',b.id,{payment:tx.result.id});return tx.commit();
  }
- const settings=await api.config(),config=catalogConfig(parse(settings.body));validateCatalog(config);const events=await eventsFor(api),customer=await profileCustomer(api,tx,b,config);requireThat(integer(b,'version')===settings.version,'Las tarifas cambiaron. Actualiza antes de confirmar.',409,'CONFIG_CHANGED');requireThat((events.find(e=>e.state==='active'&&e.starts<=api.at&&e.ends>api.at)?.id||null)===(b.eventId||null),'El modo de cobro cambió. Actualiza antes de confirmar.',409,'CONFIG_CHANGED');tx.guard('(SELECT max(version) FROM settings)=?',[settings.version]);
+ const settings=await api.config(),config=catalogConfig(parse(settings.body));validateCatalog(config);const events=await eventsFor(api),customer=await profileCustomer(api,tx,b,config,path==='catalog-entry');requireThat(integer(b,'version')===settings.version,'Las tarifas cambiaron. Actualiza antes de confirmar.',409,'CONFIG_CHANGED');requireThat((events.find(e=>e.state==='active'&&e.starts<=api.at&&e.ends>api.at)?.id||null)===(b.eventId||null),'El modo de cobro cambió. Actualiza antes de confirmar.',409,'CONFIG_CHANGED');tx.guard('(SELECT max(version) FROM settings)=?',[settings.version]);
  if(path==='catalog-service'){
   requireThat(!b.onAccount||!!customer,'Sólo Presidencia puede registrar a cuenta.');
   const service=snapshotService(config,b.serviceId,b.profile,b.vehicleType||'',api.at,events),definition=config.catalog.services.find(s=>s.id===b.serviceId);requireThat(service.kind==='bathroom'||service.kind==='fixed'&&service.parking==='none','Este servicio requiere una entrada o contrato.');const quantity=integer(b,'quantity');requireThat(quantity>0&&quantity<=50,'Cantidad de 1 a 50.');const total=service.base*quantity;amount({total},'total');
@@ -110,6 +118,7 @@ export async function catalogWrite(api,path,b,tx){
   }else service=snapshotService(config,b.serviceId,b.profile,v.type,api.at,events);
   requireThat(!['bathroom','monthly'].includes(service.kind)&&!(service.kind==='fixed'&&service.parking==='none')||!!b.monthlyId,'Selecciona un servicio de vehículo o una pensión registrada.');
   service.customerId=customer?.id||null;service.parkingSelected=b.parkingSelected===true;service.rateVersion=settings.version;service.extras=[];
+  requireThat(!customer?.deleted_at||!(b.extraIds||[]).length,'El cliente eliminado sólo conserva la cobertura de su pensión vigente.');
   for(const id of [...new Set(b.extraIds||[])]){const s=config.catalog.services.find(s=>s.id===id&&s.active);requireThat(s&&s.kind==='fixed'&&s.parking==='none'&&!s.system,'Complemento desconocido.');requireThat(!s.vehicleTypes.length||s.vehicleTypes.includes(v.type),'Selecciona un tipo de vehículo compatible con el complemento.');service.extras.push({id,name:s.name,category:serviceCategory(s),price:priceOf(s,b.profile,!!service.eventId)});}
   const lost=config.catalog.services.find(s=>s.system==='lost'&&s.active);service.lostPrice=lost?priceOf(lost,b.profile):config.lostCard;
   const id=crypto.randomUUID();tx.guard("EXISTS(SELECT 1 FROM cards WHERE id=? AND state='available' AND revision=?)",[card,row.revision]);tx.write(`INSERT INTO stays(id,card_id,vehicle,service,entered,actor,state) SELECT ?,?,?,?,?,?,'active' WHERE ${tx.exists()}`,[id,card,json(v),json(service),api.at,api.user.name]);tx.write(`UPDATE cards SET state='assigned',revision=revision+1 WHERE id=? AND ${tx.exists()}`,[card]);tx.audit('entry',id,{serviceId:service.serviceId,profile:service.profile});tx.result={id,entered:api.at};return tx.commit();
