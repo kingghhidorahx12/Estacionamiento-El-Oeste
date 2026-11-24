@@ -684,3 +684,25 @@ Mismo Worker/UUID autorizado, despliegue `6b21c8a4-3b1c-48ef-9228-394e4b4f6e1b`,
 | cloud-client.js | `4517fcf1787dbd9c372b1df993f91a485449c06d4f42f49abf642b84525d33fa` |
 | cloud.css | `c22828bfd62c760d5e72de6a63d3ee4904e80f5209f5ce1f2a47136d55e2d81e` |
 | sw.js | `3447ff929ac39cef730aa337ced6aafb940562c8cbd96b258235e615ef082759` |
+
+
+## Eliminar personas en Clientes y saldos · 24/11/2026
+
+Código publicado: `831eccad63be4d4fc624e735580067d45179a6e7`. Nueve archivos exactos revisados, diff preparado sin coincidencias con Secrets/OAuth reales. El borrador anterior web/ocr.js permanece sin modificar ni incluir. Sin cambios en Android, El Muelle, APK/Releases, QR, certificados, credenciales, tarifas o autoridad.
+
+El administrador dispone de Eliminar junto a Ver cuenta y Ajustar, en tres controles compactos de al menos 48 px. Confirmación explícita y Cancelar sin efectos. Eliminar retira a la persona de la lista habitual y de nuevos servicios, libera asociación de placas y conserva la identidad y todo el historial. Clientes eliminados permite consultar y recibir abonos pendientes. Se conservan visitas abiertas y contratos vigentes; una visita cubierta sigue disponible incluso si la persona fue eliminada, sin conceder nuevos contratos o complementos a su cuenta. Los empleados no tienen controles ni permisos de eliminación. Se mantiene auditoría, revisión e idempotencia; un formulario anterior no puede reactivar a la persona.
+
+Pruebas afectadas: 5/5 nuevas de eliminación, 19/19 restantes de catálogo/tipos/anulaciones, 8/8 de interfaz, 3/3 de migración/importación y 5/5 de administración. Casos: deuda y abonos preservados, cobro posterior, visita abierta, contrato pagado, placas reutilizables, permisos, revisión obsoleta, rollback, respuesta perdida, edición/eliminación concurrente y entrada leída antes de la eliminación que no puede conceder nuevo crédito después. Integraciones finales reales locales de workerd y HTTP 2/2; dry-run satisfactorio. La primera ejecución en sandbox no permitió conectar a localhost; fuera del sandbox la ejecución final pasó.
+
+Edge aislado con Worker/SQLite y datos ficticios: siete capturas en 320/390/768 px, controles de 48 px, Cancelar, retirada de lista/selectores, historial y cobro del saldo, cobertura mensual conservada y empleado sin controles de eliminación. Se inspeccionaron las capturas de lista y confirmación; el texto de la confirmación quedó centrado en el ajuste final de CSS, con build y 8/8 de interfaz posteriores. No acredita teléfono, cámara, PWA, Safari ni impresora físicos. Evidencia privada: .dev/customer-delete-20261124/{browser-result,review,final-tests,integration,migration-tests,preservation-tests}.
+
+Mismo Worker UUID autorizado, despliegue `594bfe1a-5d05-44e0-b049-7ced080ef95d`, interfaz `8d1c97352bedae0a`, en [El Oeste](https://eloeste.estacionamiento.workers.dev). Diez assets y tres URL versionadas coinciden con el build; state anónimo 401. Se aplicó únicamente 0010_customer_deletion.sql a la D1 original: añade deleted_at nullable, con restricción de fecha y estado inactivo. Ningún cliente real fue eliminado por esta publicación.
+
+El cotejo previo/posterior conservó las huellas de once tablas; hubo diferencias en estancias y tarjetas: se estaban registrando entradas durante el trabajo. La revisión adicional confirmó las 121 estancias anteriores idénticas, 2 entradas nuevas activas y exactamente sus asignaciones de tarjeta; al reconstruir sólo esas asignaciones, la huella de las tarjetas coincide. El resto de tablas del cotejo de migración permaneció idéntico. Se preservaron los movimientos concurrentes; no se limpió ni restauró la instalación. Evidencia de sólo lectura y huellas en target-before/target-after/live-change; no se incluyen datos ni perfiles privados en Git.
+
+| Asset público modificado | SHA-256 |
+|---|---|
+| index.html | `6e203f4ac348214724ca5b385745922cb876e7597b87544982ef42075f6fc7b3` |
+| app.js | `20521623dfb5e955994de99660d7d701c7d29f90df2f998a8b9ae7c27f159889` |
+| cloud.css | `c9c71a58525a4f8f73ccbf2259447068c71c64924e00e05e640e66af2db6618e` |
+| sw.js | `632d2d6cedbdebb52e75d064537824c0276d8a01c0e94081f9c9b21502d393cd` |
