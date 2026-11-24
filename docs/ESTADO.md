@@ -591,3 +591,23 @@ Verificación pública: versión de `/health` coincidente; diez assets y tres UR
 | app.js | `4eb2caf82df0a52f9487c02e12f0d49319cc03ba87a407a9589ee6c17438505a` |
 | cloud.css | `267b164ea174323964b1ef52aa3a6d7e6d55265f71ed41104a2da62f1c0221c4` |
 | sw.js | `364452a3156f332e92361aa85b06486705113aee3acbe2221fc2a2010d55cbc0` |
+
+
+## Anulación administrativa de cargos sin abonos · 23/11/2026
+
+Código: `f386dd85e400d2dfa738213b2f7809c5499fedec`. Revisados los once archivos exactos de Cloud, incluidos migración y pruebas, y el diff preparado contra valores reales de Secrets/OAuth sin coincidencias. `web/ocr.js` permanece como borrador anterior sin modificar ni incluir. Sin cambios en Android, El Muelle, APK, Releases o certificados.
+
+La cuenta ofrece Anular cargo sólo al administrador en cargos de servicio a cuenta sin abonos, con motivo y confirmación. El registro deja de sumar al saldo y pasa a historial de anulaciones. Cancelar vuelve a la cuenta sin cobrar ni anular. Se conservan cargo original, estancia cerrada, tarjeta y pagos. Las mensualidades y los cargos con abonos no se anulan por esta vía. `charge_voids` es inmutable, referenciada al cargo; guardas del lote y triggers impiden la carrera cobro/anulación. Se integra con balances, respaldos, conciliación/importación y reinicio existente, sin ampliar la autorización de éste.
+
+29/29 pruebas afectadas: anulación sin ingresos, administrador/motivo/importe, abonos parciales protegidos, rollback, respuesta perdida/idempotencia, carrera contra abono, conservación de estancia e importación de respaldo, catálogo y mantenimiento. Dry-run y 2/2 integraciones reales locales de workerd/HTTP con migración nueva. Edge aislado con datos ficticios: seis capturas a 320/390/768 px, motivo obligatorio, Cancelar sin cambio, saldo cero, historial e ingresos intactos; sin desbordamientos ni errores JS. Tras el ajuste de alineación se reconstruyeron assets y se repitió sólo esa revisión visual. No se probaron cámara, PWA, impresora o teléfono físicos en este ajuste. Evidencia privada en `.dev/charge-void-20261123/`.
+
+Se verificó el Worker existente y su UUID `d5ca3e8d0f8c45ddaa90866ebb1ee08b` en la cuenta autorizada. La única migración pendiente fue `0009_charge_voids.sql`; se aplicó correctamente a la D1 original antes del despliegue. Publicación `d6c5cb7b-0523-444e-984b-a5240a3fb06b`, interfaz `fead3965eb79070b`, en [El Oeste](https://eloeste.estacionamiento.workers.dev). Diez assets y tres URL versionadas idénticos al build; acceso anónimo a `/api/state` 401.
+
+Por solicitud expresa del propietario se identificó el único cargo indicado de $35, del 23/11 a las 16:53, sin abonos y con estancia cerrada. Después de publicar se anuló exclusivamente ese UUID mediante la misma lógica Api/Transaction, usando el perfil OAuth aislado, hora D1 y un identificador idempotente persistido de forma privada. El adaptador remoto limitó las tablas mutables a operations/tx_guard/charge_voids/audit. Lectura posterior: saldo de esa cuenta $0, ningún pago recibido, cero asignaciones al cargo, una anulación y una auditoría. Cargo original, estancia cerrada y todos los registros financieros previos permanecen idénticos. No se eliminó la persona ni se reiniciaron datos. Sin cambios de tarifas, horarios, autoridad, cuentas/PIN, Secrets, planes o cargos de Cloudflare. No se incluyen en Git nombres, claves de operación ni el UUID del cargo real. Evidencia: target-before/operation/resolution, migration/deployment/publication y review en la carpeta privada.
+
+| Asset público modificado | SHA-256 |
+|---|---|
+| index.html | `315f6ec2449a736f991abb3883a019a272e0f1f07511911335acb4bb81503f77` |
+| app.js | `de6a1fdda228175e29146e88aecfae1bd94471bd346062a575a88c64aabbc8cf` |
+| cloud.css | `059cb59ffda02ae0d0be962af5ca232d8fa9c9bebaccb5ce897799e659312e87` |
+| sw.js | `10361948b4f736fbdc186e44ac7013c6b4f5e16314867fdac7ef1abd665fe867` |
