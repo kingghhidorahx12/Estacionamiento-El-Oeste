@@ -22,7 +22,7 @@ test('normal, preferential and Presidencia have independent hourly windows and t
  }
 });
 test('expired pensions retain the initial price and upgrade only the current overdue block',()=>{
- const s=snapshotService(config(),'pension12','normal','auto',at),stay={entered:at,service:s},end=at+12*H;
+ const c=config();c.catalog.services.push({...structuredClone(c.catalog.services.find(s=>s.id==='pension12')),id:'pension24',name:'Pensión 24 horas',durationHours:24,prices:{normal:8000,preferred:null,presidencia:null}});c.catalog.overdueLongId='pension24';const s=snapshotService(validateCatalog(c),'pension12','normal','auto',at),stay={entered:at,service:s},end=at+12*H;
  for(const [elapsed,total]of [[0,7000],[1,14000],[12*H,14000],[12*H+1,15000],[24*H,15000],[24*H+1,22000],[36*H,22000],[36*H+1,23000],[48*H,23000]])assert.equal(pricing(stay,end+elapsed).total,total,String(elapsed));
  const monthly={...s,kind:'monthly',base:50000,baseCovered:true,contractEnd:at+720*H};assert.equal(pricing({entered:at,service:monthly},monthly.contractEnd+1).total,7000);
 });
@@ -53,7 +53,7 @@ test('accounts close visits without income, accept partial payments once, and gu
 test('legacy monthly contracts retain their original conditions for 30 days and pending payments do not grant access',async()=>{
  const db=new SqliteD1(),f=await seed(db),store=new Store(db);let clock=at;const user=f.users[0],call=async(path,b)=>new Api(store,f.env,user,clock).write(path,b,crypto.randomUUID(),await fingerprint(path,b,f.env.REQUEST_KEY));
  try{
-  const c=config();c.catalog.services.find(s=>s.id==='monthly500').vehicleTypes=['auto'];delete c.catalog.services.find(s=>s.id==='monthly500').visitHours;c.catalog.services.find(s=>s.id==='pension12').prices.normal=5000;c.catalog.services.find(s=>s.id==='pension24').prices.normal=6000;c.catalog.services.find(s=>s.id==='monthly500').prices.normal=50000;await call('catalog-save',{version:1,config:c});
+  const c=config();c.catalog.services.find(s=>s.id==='monthly500').vehicleTypes=['auto'];delete c.catalog.services.find(s=>s.id==='monthly500').visitHours;c.catalog.services.push({...structuredClone(c.catalog.services.find(s=>s.id==='pension12')),id:'pension24',name:'Pensión 24 horas',durationHours:24});c.catalog.overdueLongId='pension24';c.catalog.services.find(s=>s.id==='pension12').prices.normal=5000;c.catalog.services.find(s=>s.id==='pension24').prices.normal=6000;c.catalog.services.find(s=>s.id==='monthly500').prices.normal=50000;await call('catalog-save',{version:1,config:c});
   await assert.rejects(call('catalog-monthly',{version:2,eventId:null,profile:'normal',serviceId:'monthly500',vehicle:{plate:'MON123',type:'auto'},start:at,datesConfirmed:true,onAccount:true,paymentConfirmed:true}),/Sólo Presidencia/);assert.equal((await store.one('SELECT count(*) n FROM monthly')).n,0);
   const pending=await call('catalog-monthly',{version:2,eventId:null,profile:'normal',serviceId:'monthly500',vehicle:{plate:'MON123',type:'auto'},start:at,datesConfirmed:true,pending:true});
   const body={version:2,eventId:null,card:2,monthlyId:pending.id,profile:'normal',vehicle:{plate:'MON123',type:'auto'}};await assert.rejects(call('catalog-entry',body),/pago/);await assert.rejects(call('monthly-charge-pay',{id:pending.id,paymentConfirmed:true,expectedTotal:40000}),/saldo cambió/);await call('monthly-charge-pay',{id:pending.id,paymentConfirmed:true,expectedTotal:50000});

@@ -10,11 +10,11 @@ export function catalogConfig(original){
  // Existing catalogues and stay snapshots retain their explicitly saved settings.
  c.opening='07:00';c.closing='20:00';
  const service=(id,name,kind,price,extra={})=>({id,name,kind,active:true,vehicleTypes:[],prices:prices(price),eventPrices:prices(null),parking:'none',addonPrices:prices(c.dayAddon??3000),...extra});
- c.catalog={revision:1,customerTypes:defaultCustomerTypes(),reminderDays:3,opening:c.opening||'07:00',closing:c.closing||'20:00',eventClosing:'03:00',nightRateId:'pension12',overdueShortId:'pension12',overdueLongId:'pension24',
+ c.catalog={revision:1,customerTypes:defaultCustomerTypes(),reminderDays:3,opening:c.opening||'07:00',closing:c.closing||'20:00',eventClosing:'03:00',nightRateId:'pension12',overdueShortId:'pension12',overdueLongId:'pension12',
   vehicleTypes:[['auto','Automóvil'],['camioneta','Camioneta'],['moto','Moto'],['pickup','Pickup'],['van','Van']].map(([id,name])=>({id,name,active:true})),
   services:[service('hourly','Por hora','hourly',c.ordinary??1500,{prices:prices(c.ordinary??1500,c.preferred??1000,1000),shortPrices:prices(c.normalPartial??1000,null,500)}),service('free','Tiempo libre','free',c.freeNormal??5000,{prices:prices(c.freeNormal??5000,c.freePreferred??4000,3500)}),
    ...[['auto','Automóvil',12000],['camioneta','Camioneta',17000],['moto','Moto',10000],['pickup','Pickup',20000],['van','Van',17000]].map(([id,name,price])=>service('wash_'+id,'Lavado · '+name,'wash',c.wash?.[id]??price,{vehicleTypes:[id],parking:'addon'})),
-   service('pension12','Pensión 12 horas (noche)','pension',7000,{durationHours:12}),service('pension24','Pensión 24 horas','pension',8000,{durationHours:24,priceStatus:'provisional'}),
+   service('pension12','Pensión 12 horas (noche)','pension',7000,{durationHours:12}),
    service('monthly500','Mensualidad 12 horas','monthly',60000,{durationHours:720,visitHours:12,needsVehicleAssignment:false}),service('monthly600','Mensualidad 24 horas','monthly',70000,{durationHours:720,visitHours:24,needsVehicleAssignment:false}),
    service('bathroom','Baños','bathroom',700,{vehicleRequired:false}),service('lost','Extravío','fixed',c.lostCard??10000,{system:'lost'})]};
  c.bathroomPrice=700;return c;

@@ -25,7 +25,7 @@ async function cloudRequest(path,body){
  if(key&&response.status!==401&&data.code!=='CSRF')cloudForget(key);
  if(response.status===401&&path!=='login'&&data.code!=='CREDENTIALS'){showLogin();throw new Error(data.code==='ACCESS_REQUIRED'?'Vuelve a autorizar este navegador con tu correo de acceso. Recarga la página.':'La sesión terminó. Ingresa de nuevo.');}
  if(path==='login'&&data.needsApproval){const box=document.querySelector('#cloud-device-approval');if(box){box.hidden=false;box.textContent='Código '+data.requestCode+' · Pide al administrador autorizarlo desde Equipo → Dispositivos. Después pulsa Entrar de nuevo.';}throw new Error(data.message);}
- if(!response.ok)throw new Error(data.error||'No se pudo completar la operación.');
+ if(!response.ok)throw Object.assign(new Error(data.error||'No se pudo completar la operación.'),{code:data.code,status:response.status});
  if(path==='login'){const box=document.querySelector('#cloud-device-approval');if(box)box.hidden=true;}
  // Only a fresh state response makes displayed financial information current.
  if(path==='state')cloudConnection(true);return data;

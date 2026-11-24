@@ -91,6 +91,8 @@ test('full Worker in workerd: private owner setup, PIN, browser approval, concur
   assert.equal((await call('account?id='+c.data.id,ownerAuth)).data.balance,7000);
   const abono=await call('account-pay',{...ownerAuth,epoch:'1',body:{customerId:c.data.id,amount:1000,paymentConfirmed:true}});assert.equal(abono.status,200);
   assert.equal((await call('account?id='+c.data.id,ownerAuth)).data.balance,6000);
+  const beforeAgreement=(await call('state',ownerAuth)).data.report.total,agreementEntry=await call('catalog-entry',{...ownerAuth,epoch:'1',body:{version,eventId:null,card:6,profile:'normal',serviceId:'free',vehicle:{plate:'ADJ006',type:'auto'}}});assert.equal(agreementEntry.status,200);
+  const agreementKey=crypto.randomUUID(),agreementBody={id:agreementEntry.data.id,expectedTotal:5000,resolvedTotal:4200,reason:'Acuerdo autorizado con cliente',vehicleConfirmed:true,paymentConfirmed:true},agreement=await call('catalog-checkout',{...ownerAuth,epoch:'1',key:agreementKey,body:agreementBody});assert.equal(agreement.status,200,JSON.stringify(agreement.data));assert.equal(agreement.data.total,4200);assert.equal((await call('catalog-checkout',{...ownerAuth,epoch:'1',key:agreementKey,body:agreementBody})).data.id,agreement.data.id);assert.equal((await call('state',ownerAuth)).data.report.total,beforeAgreement+4200);const agreementAudit=JSON.parse((await db.prepare("SELECT detail FROM audit WHERE action='administrative_resolution' AND entity=?").bind(agreementEntry.data.id).first()).detail);assert.equal(agreementAudit.original,5000);assert.equal(agreementAudit.total,4200);
   await assert.rejects(db.prepare('DELETE FROM settlements').run(),/IMMUTABLE_PAYMENT/);
  }finally{await mf.dispose();}
 });

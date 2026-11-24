@@ -210,3 +210,5 @@ dialog.camera-dialog{position:fixed;inset:0;width:100vw;max-width:none;height:10
 @media(min-width:361px) and (max-width:1023px){.catalog-vehicle-row .plate-long{font-size:21px}}
 
 #catalog-operation-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;max-width:500px;margin-inline:auto}#catalog-operation-actions>button{width:100%;min-width:0;justify-content:center;text-align:center}
+
+.catalog-adjustment>summary{display:flex;justify-content:center;align-items:center;min-height:48px;border:1px solid var(--line);border-radius:14px;padding:10px 14px;text-align:center;background:#f5f5eb}.catalog-adjustment>summary:after{margin-left:8px}.catalog-adjustment>label{max-width:320px;margin-inline:auto;width:100%}.catalog-adjustment>.fine{text-align:center}.catalog-adjustment>[data-discard-adjustment]{display:flex;margin-inline:auto;justify-content:center}
