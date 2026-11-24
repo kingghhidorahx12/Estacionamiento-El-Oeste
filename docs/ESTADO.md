@@ -637,3 +637,25 @@ La configuración pasó de versión 17 a 18 mediante Api/Transaction, hora D1, i
 | app.js | `eaa9f3c0938c9bbe8e7a6b058964380df6f9449633bd35a74efa25d214ca037a` |
 | cloud.css | `66e022dd2c1c85ece4b9a6d90540735f5348a53b50e3c5e4013f3c54457066ee` |
 | sw.js | `36f4bfe781c938d7e13f7270ccf9c0ba80a896a650f5d49b002fe46b714813f2` |
+
+
+## Pensiones en Operación y nombre de noche · 24/11/2026
+
+Código publicado: `7ea7e21f52454629d21055314182cbedce66e001`. Revisados los seis archivos exactos y el diff preparado contra Secrets/OAuth reales, sin coincidencias. Se preserva el borrador previo `web/ocr.js` sin incluirlo. Sin modificaciones en Android, El Muelle, réplica, APK/Releases, certificados o permisos.
+
+El botón Pensiones está en Operación junto a Clientes y saldos, en dos columnas compactas y centradas; se retiró de Resumen y su regreso apunta a Operación. Se habilita la navegación para empleados a los datos de contratos que ya recibían en state y a sus visitas cubiertas; se ocultan alta/cobro de mensualidad para empleados y permanecen los permisos administrativos de API. El nombre nuevo es «Pensión 12 horas (noche)», con $70 sin cambio.
+
+Solicitud aún pendiente: retirar la temporal de 24 horas. Al estar seleccionada para saldo vencido, se pidió definir si se repiten periodos de 12 horas/$70 o se resuelve administrativamente el excedente. Sin respuesta al publicar esta parte, no se retira ni se activa una política nueva. La validación admite que ambos periodos configurados sean el mismo; las pruebas verifican esa capacidad en datos ficticios, sin activarla en la instalación. Las mensualidades de 12/24 horas y sus importes permanecen.
+
+13/13 pruebas afectadas de eliminación, reutilización de periodo e interfaz; integración HTTP real local en workerd 1/1 y dry-run satisfactorios. Se comprueba que una configuración de un solo periodo puede retirar la temporal conservando estancias de 24 horas anteriores y un contrato mensual de 24 horas pagado, sin aplicarlo al negocio todavía. Navegador Edge aislado con Worker/SQLite y datos ficticios: siete capturas, distribución en 320/390/768/1280 px, administrador y empleado, regreso a Operación, registro de visita pagada a $0 y rechazo 403 de cobro de mensualidad por empleado. Sin errores JS ni desbordamiento de botones. Se corrigió únicamente una variable del verificador que ocultaba la cola CDP antes de la ejecución satisfactoria. No se probó hardware, cámara, PWA, impresora ni Safari físico. Evidencia privada: `.dev/night-only-20261124/{navigation-result,review}.json`.
+
+Mismo Worker/UUID autorizado, publicación `eeb1b855-5a8a-417e-9a2a-27694016ddd2`, interfaz `569732bd0fe279b3`, en [El Oeste](https://eloeste.estacionamiento.workers.dev). Verificación inicial encontró 500 temporal en el asset CSS; la comprobación específica posterior y la verificación final devolvieron 200 y contenido idéntico. Diez assets y tres URL versionadas coinciden con el build, anónimo state 401. Sin migraciones SQL, planes, cargos ni cambios de autoridad.
+
+Configuración 18 → 19 mediante Api/Transaction y guarda de versión: sólo cambia el nombre de pension12. Se mantienen precios, periodos y enlaces de excedentes. Documento guardado idéntico al preparado; huellas antes/después de estancias, contratos, pagos, abonos, baños, tarjetas y usuarios coinciden. El adaptador remoto limita las mutaciones a settings/operations/tx_guard/audit. Huella de configuración `c4acce86cbac07da74e9be7595f3ad6795c50cc47e4f1e9659ff0923757c119e`; pruebas y plan idempotente quedan privados, fuera de Git.
+
+| Asset público modificado | SHA-256 |
+|---|---|
+| index.html | `db724ab82513a09ecfd9ad8569a7e0931b768a7af19812042946a3c9d3a32df1` |
+| app.js | `a73aa78f5cb2c8e92e466e654252176c414326fa87a683e133f5a20d86ddaa59` |
+| cloud.css | `4a4041e047690a4d519b8a93e3c0f77ba9029a92192649b241559e94a8c9fee5` |
+| sw.js | `520a9bdcaa950ad07c3d32c6110693a803d247b2f59cc960be3f20b936c56128` |
