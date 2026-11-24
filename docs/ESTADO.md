@@ -659,3 +659,28 @@ Configuración 18 → 19 mediante Api/Transaction y guarda de versión: sólo ca
 | app.js | `a73aa78f5cb2c8e92e466e654252176c414326fa87a683e133f5a20d86ddaa59` |
 | cloud.css | `4a4041e047690a4d519b8a93e3c0f77ba9029a92192649b241559e94a8c9fee5` |
 | sw.js | `520a9bdcaa950ad07c3d32c6110693a803d247b2f59cc960be3f20b936c56128` |
+
+
+## Temporal única, bloques confirmados y ajuste de cobro · 24/11/2026
+
+Se resuelve el pendiente anterior: el propietario confirmó otro bloque de 12 horas. Código `1d4065df551761c25f663505643a5862302348c7`, diez archivos exactos revisados; diff preparado cotejado con Secrets/OAuth reales sin coincidencias. El borrador previo `web/ocr.js` permanece fuera del commit. Sin cambios en Android, El Muelle, réplica, APK, Releases, QR o certificados.
+
+La inicialización ofrece sólo Pensión 12 horas (noche), $70; la temporal de 24 horas desaparece de la selección y configuración visible. El catálogo existente conserva su ID como eliminado/inactivo y usa pension12 tanto para el periodo inicial como para continuar excedentes. Ejemplos: 12 h $70; 12 h más un instante $140; 24 h $140; 24 h más un instante $210. Se conservan mensualidades de 12/24 horas y las instantáneas anteriores. Operación mantiene el botón Pensiones junto a Clientes.
+
+Ajustar importe está visible en la salida Cloud vigente. Permite total autorizado no negativo, motivo obligatorio sólo al ajustar y Descartar/Cancelar sin cambio. La vista previa se aplica al confirmar; no se guarda un nuevo precio para estancias futuras ni se modifica la estancia al teclear. El administrador autenticado puede autorizarlo; el empleado necesita credenciales administrativas, con límite de intentos y guarda de revisión. Se conservan en auditoría cálculo actual, cálculo mostrado, total acordado, motivo y autorizante. Puede reducir, incrementar o dejar en cero. Un incremento añade una línea positiva Ajuste de importe autorizado, incluida en reportes; no altera pagos cerrados. Ajustar una salida a cuenta conserva las reglas previas de Presidencia y sólo los abonos recibidos entran como ingreso.
+
+La cotización normal sigue rechazando un total desactualizado. Con autorización explícita, el acuerdo se respeta aunque el tiempo haya cambiado la cotización; se auditan ambos valores. Se mantienen lote transaccional, guarda de estancia activa/revisión e idempotencia. El transporte conserva código/estado del error: un PIN inválido conserva formulario y sesión, limpia el PIN, y muestra el error; conflictos reales refrescan la cotización con mensaje visible. Las 14 entradas activas consultadas usan schema 2; no se cambia el flujo histórico separado ni se anuncia ajuste sobre pagos cerrados.
+
+Pruebas: 21/21 de pensiones/catálogo/UI y 4/4 específicas de ajuste. Se verifican bordes de 12 h, antiguas estancias de 24 h y mensualidades pagadas conservadas, acuerdo al cruzar 10 minutos, importe cero, aumentos/desglose, reducción, deuda/abonos parciales, motivo, permisos/PIN, rollback, respuesta perdida/reintento y dos totales autorizados concurrentes con un solo pago. Integración HTTP real local en workerd 1/1: cierre a $42 frente a cálculo de $50, auditoría y repetición idempotente sin otro ingreso. Dry-run satisfactorio.
+
+Edge aislado, Worker/SQLite y datos ficticios: siete capturas; ajuste a $40, descarte/cancelación sin cobrar, aumento autorizado, PIN incorrecto sin cerrar sesión y posterior autorización de empleado, sólo temporal de noche y $140 al superar 12 horas. Se revisó el modal en 320/390/768 px; sin errores JS. La primera ejecución tuvo un fallo de reingreso en el verificador al simular cambio de usuario y 12 horas de reloj; se seleccionó explícitamente el usuario ficticio correcto y la ejecución final pasó. No acredita cámara, PWA, impresora, Safari ni teléfono físico. Evidencia privada: `.dev/repeat-night-20261124/{review,browser-result}.json`.
+
+Mismo Worker/UUID autorizado, despliegue `6b21c8a4-3b1c-48ef-9228-394e4b4f6e1b`, interfaz `eeaf5a075af7324e`, en [El Oeste](https://eloeste.estacionamiento.workers.dev). Diez assets y tres URL versionadas idénticos al build, anónimo state 401. La configuración pasó 19 → 20 mediante Api/Transaction, hora D1, idempotencia y guarda de versión: baja de pension24 y continuación en pension12. Documento guardado idéntico al preparado; huellas iguales antes/después para estancias, contratos, pagos, abonos, baños, tarjetas y usuarios. No se ejecutó ningún ajuste de cobro sobre datos reales; se publicó la función. Sin migraciones SQL, cambio de autoridad, cuentas/PIN, planes o cargos de Cloudflare. Huella de configuración `4c79d6cd933c837ac33e4f81d12ea9189e467f573c65b141a35431bc6484946c`; planes y datos privados quedan fuera de Git.
+
+| Asset público modificado | SHA-256 |
+|---|---|
+| index.html | `430262890e21dd18626792abef0c30488e97819814cbba3a70abbabcbf66de9a` |
+| app.js | `d29ce209e1969860e9aebae3a0d8c0434de52b62dc17d6977075612718c301ef` |
+| cloud-client.js | `4517fcf1787dbd9c372b1df993f91a485449c06d4f42f49abf642b84525d33fa` |
+| cloud.css | `c22828bfd62c760d5e72de6a63d3ee4904e80f5209f5ce1f2a47136d55e2d81e` |
+| sw.js | `3447ff929ac39cef730aa337ced6aafb940562c8cbd96b258235e615ef082759` |
