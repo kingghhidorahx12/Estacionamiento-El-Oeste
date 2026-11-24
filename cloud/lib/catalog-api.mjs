@@ -4,7 +4,7 @@ import {catalogConfig,validateCatalog,snapshotService,pricing,priceOf,plateKey,s
 const json=v=>JSON.stringify(v),parse=v=>JSON.parse(v),DAY=86400000;
 export async function eventsFor(api){return api.store.all("SELECT id,business_date,starts,ends,state,created FROM event_sessions WHERE state<>'cancelled' AND ends>=coalesce((SELECT min(entered) FROM stays WHERE state='active'),?) ORDER BY starts",api.at-DAY);}
 export async function customerRows(api){
- const rows=await api.store.all(`SELECT c.*,coalesce((SELECT sum(q.total) FROM service_charges q WHERE q.customer_id=c.id),0)-coalesce((SELECT sum(a.cents) FROM charge_allocations a JOIN service_charges q ON q.id=a.charge_id WHERE q.customer_id=c.id),0) balance FROM customers c ORDER BY c.name COLLATE NOCASE`);
+ const rows=await api.store.all(`SELECT c.*,coalesce((SELECT sum(q.total) FROM service_charges q WHERE q.customer_id=c.id AND NOT EXISTS(SELECT 1 FROM charge_voids v WHERE v.charge_id=q.id)),0)-coalesce((SELECT sum(a.cents) FROM charge_allocations a JOIN service_charges q ON q.id=a.charge_id WHERE q.customer_id=c.id AND NOT EXISTS(SELECT 1 FROM charge_voids v WHERE v.charge_id=q.id)),0) balance FROM customers c ORDER BY c.name COLLATE NOCASE`);
  const plates=await api.store.all('SELECT plate,customer_id FROM customer_plates ORDER BY plate');return rows.map(c=>({...c,plates:plates.filter(p=>p.customer_id===c.id).map(p=>p.plate)}));
 }
 export async function catalogState(api,config){return {customers:await customerRows(api),events:await eventsFor(api),catalog:catalogConfig(config).catalog};}
@@ -12,9 +12,9 @@ export async function catalogRead(api,path,params){
  if(path==='accounts')return {customers:await customerRows(api)};
  if(path==='account'){
   const id=params.get('id'),customer=await api.store.one('SELECT * FROM customers WHERE id=?',id);requireThat(customer,'Cliente desconocido.');
-  const charges=await api.store.all('SELECT q.*,coalesce((SELECT sum(cents) FROM charge_allocations WHERE charge_id=q.id),0) paid FROM service_charges q WHERE q.customer_id=? ORDER BY q.created,q.id',id);
+  const charges=await api.store.all('SELECT q.*,v.created voided_at,v.reason void_reason,v.actor voided_by,coalesce((SELECT sum(cents) FROM charge_allocations WHERE charge_id=q.id),0) paid FROM service_charges q LEFT JOIN charge_voids v ON v.charge_id=q.id WHERE q.customer_id=? ORDER BY q.created,q.id',id);
   const payments=await api.store.all('SELECT DISTINCT p.* FROM settlements p JOIN charge_allocations a ON a.payment_id=p.id JOIN service_charges q ON q.id=a.charge_id WHERE q.customer_id=? ORDER BY p.paid DESC',id);
-  return {customer,charges,payments,balance:charges.reduce((n,q)=>n+q.total-q.paid,0)};
+  return {customer,charges,payments,balance:charges.reduce((n,q)=>n+(q.voided_at?0:q.total-q.paid),0)};
  }
  return null;
 }
@@ -26,7 +26,7 @@ function charge(api,tx,{stay=null,monthly=null,customer=null,lines,total}){
 function settle(api,tx,charges,cents){
  amount({cents},'cents');if(!cents)return {id:'covered-'+tx.id,total:0,lines:[],paid:api.at,covered:true,actor:api.user.name};
  const allocations=[],lines=[];let left=cents;
- for(const q of charges){const n=Math.min(left,q.total-q.paid);if(!n)continue;allocations.push({id:q.id,cents:n});lines.push(...portion(typeof q.lines==='string'?parse(q.lines):q.lines,q.paid,n));left-=n;if(!left)break;}
+ for(const q of charges){const n=Math.min(left,q.total-q.paid);if(!n)continue;tx.guard('NOT EXISTS(SELECT 1 FROM charge_voids WHERE charge_id=?)',[q.id]);allocations.push({id:q.id,cents:n});lines.push(...portion(typeof q.lines==='string'?parse(q.lines):q.lines,q.paid,n));left-=n;if(!left)break;}
  requireThat(!left,'El abono supera el saldo pendiente.');const id=crypto.randomUUID();
  tx.write(`INSERT INTO settlements(id,total,lines,actor,paid) SELECT ?,?,?,?,? WHERE ${tx.exists()}`,[id,cents,json(lines),api.user.name,api.at]);
  tx.write(`INSERT INTO charge_allocations(payment_id,charge_id,cents) SELECT ?,json_extract(value,'$.id'),json_extract(value,'$.cents') FROM json_each(?) WHERE ${tx.exists()}`,[id,json(allocations)]);return {id,total:cents,lines,actor:api.user.name,paid:api.at};
@@ -36,7 +36,7 @@ async function profileCustomer(api,tx,b,config){
  const c=await api.store.one('SELECT * FROM customers WHERE id=? AND active=1',b.customerId);requireThat(c,'Selecciona un cliente de Presidencia autorizado.');tx.guard('EXISTS(SELECT 1 FROM customers WHERE id=? AND active=1 AND revision=?)',[c.id,c.revision]);return c;
 }
 export async function catalogWrite(api,path,b,tx){
- const routes=['catalog-save','customer-save','event-start','event-end','catalog-entry','catalog-checkout','catalog-monthly','catalog-service','account-pay','monthly-charge-pay'];if(!routes.includes(path))return null;
+ const routes=['catalog-save','customer-save','event-start','event-end','catalog-entry','catalog-checkout','catalog-monthly','catalog-service','account-pay','account-charge-void','monthly-charge-pay'];if(!routes.includes(path))return null;
  if(path==='catalog-save'){
   admin(api.user);const c=validateCatalog(b.config),previous=await api.config();requireThat(previous.version===integer(b,'version'),'Actualiza la configuración antes de guardar.',409,'CONFIG_CHANGED');
   const old=catalogConfig(parse(previous.body)).catalog;
@@ -65,10 +65,16 @@ export async function catalogWrite(api,path,b,tx){
   // Price activation stops now; the granted extended coverage is preserved.
   tx.write(`UPDATE event_sessions SET state='ended' WHERE id=? AND ${tx.exists()}`,[event.id]);tx.audit('event_ended',event.id,{});tx.result={ok:true};return tx.commit();
  }
+ if(path==='account-charge-void'){
+  admin(api.user);requireThat(b.confirmed===true,'Confirma la anulación del cargo.');const why=reason(b),q=await api.store.one('SELECT q.*,coalesce((SELECT sum(cents) FROM charge_allocations WHERE charge_id=q.id),0) paid FROM service_charges q WHERE q.id=? AND q.customer_id=?',b.id,b.customerId);
+  requireThat(q&&q.total>0,'Cargo de cuenta desconocido.');requireThat(!q.monthly_id,'Este cargo corresponde a una pensión; requiere su gestión específica.');requireThat(q.paid===0,'El cargo tiene abonos; no se puede anular desde aquí.',409,'CHARGE_HAS_PAYMENTS');requireThat(!await api.store.one('SELECT charge_id FROM charge_voids WHERE charge_id=?',q.id),'El cargo ya fue anulado.',409,'CHARGE_VOIDED');requireThat(amount(b,'expectedTotal')===q.total,'El importe cambió. Actualiza la cuenta.',409,'TOTAL_CHANGED');
+  tx.guard("EXISTS(SELECT 1 FROM service_charges q WHERE q.id=? AND q.customer_id=? AND q.total=? AND q.monthly_id IS NULL AND (q.stay_id IS NULL OR EXISTS(SELECT 1 FROM stays s WHERE s.id=q.stay_id AND s.state='closed')))",[q.id,q.customer_id,q.total]);tx.guard('NOT EXISTS(SELECT 1 FROM charge_allocations WHERE charge_id=?)',[q.id]);tx.guard('NOT EXISTS(SELECT 1 FROM charge_voids WHERE charge_id=?)',[q.id]);
+  tx.write(`INSERT INTO charge_voids(charge_id,reason,actor,created) SELECT ?,?,?,? WHERE ${tx.exists()}`,[q.id,why,api.user.name,api.at]);tx.audit('charge_voided',q.id,{customerId:q.customer_id,total:q.total,reason:why});tx.result={id:q.id,voided:true,total:q.total};return tx.commit();
+ }
  if(path==='account-pay'){
   const customer=await api.store.one('SELECT * FROM customers WHERE id=?',b.customerId);requireThat(customer,'Cliente desconocido.');requireThat(b.paymentConfirmed===true,'Confirma el pago recibido.');const n=amount(b,'amount');requireThat(n>0,'El abono debe ser mayor a cero.');
-  const rows=await api.store.all('SELECT q.*,coalesce((SELECT sum(cents) FROM charge_allocations WHERE charge_id=q.id),0) paid FROM service_charges q WHERE q.customer_id=? ORDER BY q.created,q.id',customer.id),balance=rows.reduce((v,q)=>v+q.total-q.paid,0);requireThat(n<=balance,'El abono supera el saldo pendiente.');
-  tx.guard('(SELECT coalesce(sum(q.total),0) FROM service_charges q WHERE customer_id=?)-(SELECT coalesce(sum(a.cents),0) FROM charge_allocations a JOIN service_charges q ON q.id=a.charge_id WHERE q.customer_id=?)=?',[customer.id,customer.id,balance]);
+  const rows=await api.store.all('SELECT q.*,coalesce((SELECT sum(cents) FROM charge_allocations WHERE charge_id=q.id),0) paid FROM service_charges q WHERE q.customer_id=? AND NOT EXISTS(SELECT 1 FROM charge_voids v WHERE v.charge_id=q.id) ORDER BY q.created,q.id',customer.id),balance=rows.reduce((v,q)=>v+q.total-q.paid,0);requireThat(n<=balance,'El abono supera el saldo pendiente.');
+  tx.guard('(SELECT coalesce(sum(q.total),0) FROM service_charges q WHERE customer_id=? AND NOT EXISTS(SELECT 1 FROM charge_voids v WHERE v.charge_id=q.id))-(SELECT coalesce(sum(a.cents),0) FROM charge_allocations a JOIN service_charges q ON q.id=a.charge_id WHERE q.customer_id=?)=?',[customer.id,customer.id,balance]);
   tx.result=settle(api,tx,rows,n);tx.audit('account_payment',customer.id,{amount:n});return tx.commit();
  }
  if(path==='catalog-checkout'){

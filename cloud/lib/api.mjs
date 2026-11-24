@@ -28,7 +28,7 @@ export class Api{
    this.store.stmt("SELECT exited FROM stays WHERE state='closed' AND exited>=? AND exited<?",[a,b]),
    actor?this.store.stmt('SELECT id,paid,actor,total,lines,quantity FROM bathroom_payments WHERE actor=? AND paid>=? AND paid<? ORDER BY paid DESC',[actor,a,b]):this.store.stmt('SELECT id,paid,actor,total,lines,quantity FROM bathroom_payments WHERE paid>=? AND paid<? ORDER BY paid DESC',[a,b]),
    actor?this.store.stmt('SELECT id,paid,actor,total,lines FROM settlements WHERE actor=? AND paid>=? AND paid<? ORDER BY paid DESC',[actor,a,b]):this.store.stmt('SELECT id,paid,actor,total,lines FROM settlements WHERE paid>=? AND paid<? ORDER BY paid DESC',[a,b]),
-   this.store.stmt("SELECT created,lines FROM service_charges WHERE created>=? AND created<? AND json_extract(lines,'$[0].category')='bathroom'",[a,b])
+   this.store.stmt("SELECT created,lines FROM service_charges WHERE created>=? AND created<? AND NOT EXISTS(SELECT 1 FROM charge_voids v WHERE v.charge_id=service_charges.id) AND json_extract(lines,'$[0].category')='bathroom'",[a,b])
   ]);
 
   const [parkingPayments,entries,exits,bathrooms,settlements,bathroomCharges]=snapshot.map(x=>x.results);
@@ -421,7 +421,7 @@ export class Api{
 
   if(path==='backup'){
    admin(this.user);
-   const tables={},names=['settings','users','cards','stays','monthly','payments','bathroom_payments','audit','meta','customers','customer_plates','service_charges','settlements','charge_allocations','event_sessions'];
+   const tables={},names=['settings','users','cards','stays','monthly','payments','bathroom_payments','audit','meta','customers','customer_plates','service_charges','settlements','charge_allocations','charge_voids','event_sessions'];
    const rows=await this.store.batch(names.map(name=>this.store.stmt('SELECT * FROM '+name)));
    names.forEach((name,i)=>tables[name]=rows[i].results);
 

@@ -11,7 +11,7 @@ test('actual workerd WebCrypto preserves the Java PBKDF2 rounds; D1 binding comm
   console.log('workerd PBKDF2 wall ms (not cloud CPU):',data.wallMs);
 
   const db=await mf.getD1Database('DB');
-  for(const name of ['0001_authority.sql','0002_devices.sql','0003_capacity_60.sql','0004_management.sql','0005_bathrooms.sql','0006_login_identifier.sql','0007_current_login_uniqueness.sql','0008_catalog_accounts.sql'])await db.exec(runtimeMigrationSql(name));
+  for(const name of ['0001_authority.sql','0002_devices.sql','0003_capacity_60.sql','0004_management.sql','0005_bathrooms.sql','0006_login_identifier.sql','0007_current_login_uniqueness.sql','0008_catalog_accounts.sql','0009_charge_voids.sql'])await db.exec(runtimeMigrationSql(name));
 
   const f=await seed(db);
   const request={card:1,vehicle:{plate:'WORKERD123'},service:{mode:'hourly'}},key=crypto.randomUUID(),fp=await fingerprint('entry',request,f.env.REQUEST_KEY),api=()=>new Api(new Store(db),f.env,f.users[1],f.at);
