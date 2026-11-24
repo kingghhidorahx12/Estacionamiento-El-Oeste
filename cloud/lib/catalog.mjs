@@ -14,8 +14,8 @@ export function catalogConfig(original){
   vehicleTypes:[['auto','Automóvil'],['camioneta','Camioneta'],['moto','Moto'],['pickup','Pickup'],['van','Van']].map(([id,name])=>({id,name,active:true})),
   services:[service('hourly','Por hora','hourly',c.ordinary??1500,{prices:prices(c.ordinary??1500,c.preferred??1000,1000),shortPrices:prices(c.normalPartial??1000,null,500)}),service('free','Tiempo libre','free',c.freeNormal??5000,{prices:prices(c.freeNormal??5000,c.freePreferred??4000,3500)}),
    ...[['auto','Automóvil',12000],['camioneta','Camioneta',17000],['moto','Moto',10000],['pickup','Pickup',20000],['van','Van',17000]].map(([id,name,price])=>service('wash_'+id,'Lavado · '+name,'wash',c.wash?.[id]??price,{vehicleTypes:[id],parking:'addon'})),
-   service('pension12','Pensión 12 horas','pension',5000,{durationHours:12}),service('pension24','Pensión 24 horas','pension',6000,{durationHours:24}),
-   service('monthly500','Mensualidad $500','monthly',50000,{durationHours:720,needsVehicleAssignment:true}),service('monthly600','Mensualidad $600','monthly',60000,{durationHours:720,needsVehicleAssignment:true}),
+   service('pension12','Pensión 12 horas','pension',7000,{durationHours:12}),service('pension24','Pensión 24 horas','pension',8000,{durationHours:24,priceStatus:'provisional'}),
+   service('monthly500','Mensualidad 12 horas','monthly',60000,{durationHours:720,visitHours:12,needsVehicleAssignment:false}),service('monthly600','Mensualidad 24 horas','monthly',70000,{durationHours:720,visitHours:24,needsVehicleAssignment:false}),
    service('bathroom','Baños','bathroom',700,{vehicleRequired:false}),service('lost','Extravío','fixed',c.lostCard??10000,{system:'lost'})]};
  c.bathroomPrice=700;return c;
 }
@@ -27,7 +27,7 @@ export function validateCatalog(c){
  for(const t of k.vehicleTypes)identity(t,typeIds);const customerIds=new Set();requireThat(Array.isArray(k.customerTypes)&&k.customerTypes.length>0&&k.customerTypes.length<=50,'Registra de 1 a 50 tipos de cliente.');for(const p of k.customerTypes){identity(p,customerIds);requireThat(['normal','full_hour'].includes(p.calculation),'Selecciona el cálculo horario del cliente.');}requireThat(k.customerTypes.some(p=>p.id==='normal'&&p.active&&!p.deleted&&p.calculation==='normal'),'Normal es el precio base y debe permanecer activo.');for(const p of k.customerTypes)if(PROFILES.includes(p.id))requireThat(p.calculation===(p.id==='preferred'?'full_hour':'normal'),'Conserva el cálculo confirmado de '+p.name+'.');
  requireThat(k.vehicleTypes.some(t=>t.active&&!t.deleted),'Conserva al menos un tipo de vehículo activo.');
  const checkPrices=(p,nullable=true)=>{requireThat(p&&typeof p==='object','Configura los precios por perfil.');for(const [id,value]of Object.entries(p)){requireThat(customerIds.has(id),'Precio de un tipo de cliente desconocido.');if(value!=null)amount(p,id);else requireThat(nullable,'Falta un precio normal.');}};
- for(const s of k.services){identity(s,ids);requireThat(['hourly','free','wash','pension','monthly','bathroom','fixed'].includes(s.kind),'Tipo de cobro inválido.');checkPrices(s.prices);amount(s.prices,'normal');checkPrices(s.eventPrices);requireThat(Array.isArray(s.vehicleTypes)&&s.vehicleTypes.every(id=>typeIds.has(id)),'Tipo de vehículo desconocido.');requireThat(['none','included','addon'].includes(s.parking),'Cobertura de estacionamiento inválida.');checkPrices(s.addonPrices);amount(s.addonPrices,'normal');if(s.kind==='hourly'){checkPrices(s.shortPrices);amount(s.shortPrices,'normal');for(const p of PROFILES)if(p!=='preferred')requireThat(priceOf(s,p,false,'shortPrices')<=priceOf(s,p),'La fracción no puede superar la hora.');}if(['pension','monthly'].includes(s.kind))requireThat(Number.isInteger(s.durationHours)&&s.durationHours>0&&s.durationHours<=8760,'Duración inválida.');}
+ for(const s of k.services){identity(s,ids);requireThat(s.priceStatus==null||['confirmed','provisional'].includes(s.priceStatus),'Estado del precio inválido.');requireThat(['hourly','free','wash','pension','monthly','bathroom','fixed'].includes(s.kind),'Tipo de cobro inválido.');checkPrices(s.prices);amount(s.prices,'normal');checkPrices(s.eventPrices);requireThat(Array.isArray(s.vehicleTypes)&&s.vehicleTypes.every(id=>typeIds.has(id)),'Tipo de vehículo desconocido.');requireThat(['none','included','addon'].includes(s.parking),'Cobertura de estacionamiento inválida.');checkPrices(s.addonPrices);amount(s.addonPrices,'normal');if(s.kind==='hourly'){checkPrices(s.shortPrices);amount(s.shortPrices,'normal');for(const p of PROFILES)if(p!=='preferred')requireThat(priceOf(s,p,false,'shortPrices')<=priceOf(s,p),'La fracción no puede superar la hora.');}if(['pension','monthly'].includes(s.kind))requireThat(Number.isInteger(s.durationHours)&&s.durationHours>0&&s.durationHours<=8760,'Duración inválida.');if(s.kind==='monthly'&&s.visitHours!=null)requireThat(Number.isInteger(s.visitHours)&&s.visitHours>0&&s.visitHours<=s.durationHours,'Configura las horas incluidas por visita de la mensualidad.');}
  for(const key of ['opening','closing','eventClosing'])requireThat(/^([01]\d|2[0-3]):[0-5]\d$/.test(k[key]||''),'Configura los horarios.');requireThat(k.opening!==k.closing&&k.opening!==k.eventClosing,'Apertura y cierre deben ser distintos.');
  requireThat(Number.isInteger(k.reminderDays)&&k.reminderDays>=0&&k.reminderDays<=365,'Aviso de 0 a 365 días.');
  for(const s of k.services)if(s.active&&s.typeSelectionRequired)requireThat(s.vehicleTypes.length>0,'Asigna los vehículos de '+s.name+' antes de activarlo.');
@@ -39,6 +39,7 @@ export function validateCatalog(c){
  // Keep public QR cards and historical clients reading the normal tariff fields.
  const active=id=>k.services.find(s=>s.id===id&&s.active);for(const [id,key]of [['hourly','ordinary'],['free','freeNormal'],['bathroom','bathroomPrice'],['lost','lostCard']])if(active(id))c[key]=priceOf(active(id),'normal');
  if(active('hourly'))c.preferred=priceOf(active('hourly'),'preferred');if(active('free'))c.freePreferred=priceOf(active('free'),'preferred');c.opening=k.opening;c.closing=k.closing;
+ if(Array.isArray(c.monthly))for(const [id,legacyId]of [['monthly500','12h'],['monthly600','24h']]){const service=active(id),legacy=c.monthly.find(m=>m.id===legacyId);if(service?.visitHours&&legacy){legacy.price=priceOf(service,'normal');legacy.hours=service.visitHours;}}
  for(const id of ['auto','camioneta','van','pickup','moto'])if(active('wash_'+id))c.wash[id]=priceOf(active('wash_'+id),'normal');return c;
 }
 export function priceOf(service,profile='normal',event=false,field='prices'){
@@ -63,7 +64,7 @@ export function snapshotService(config,id,profile,vehicleType,at,events=[]){
  const event=events.find(e=>e.state==='active'&&e.starts<=at&&e.ends>at),fullHour=customerType.calculation==='full_hour',tariff=s;
  const short=k.services.find(v=>v.id===k.overdueShortId),long=k.services.find(v=>v.id===k.overdueLongId),night=k.services.find(v=>v.id===k.nightRateId),hour=s.kind==='hourly'?s:k.services.find(v=>v.id==='hourly'&&v.active)||k.services.find(v=>v.kind==='hourly'&&v.active);
  requireThat(short&&long&&night&&hour,'Completa las reglas de estacionamiento y pensión.');
- return {schema:2,mode:s.kind==='pension'?'temporary':s.kind==='wash'?'wash_only':s.kind,serviceId:s.id,serviceLabel:s.name,kind:s.kind,profile,profileName:customerType.name,hourScheme:customerType.calculation,preferred:profile==='preferred',base:priceOf(tariff,profile,!!event),category:s.kind==='free'?'time_free_'+(profile==='preferred'?'preferred':profile):serviceCategory(s),parking:s.parking,addon:priceOf(s,profile,false,'addonPrices'),durationHours:s.durationHours||0,
+ return {schema:2,mode:s.kind==='pension'?'temporary':s.kind==='wash'?'wash_only':s.kind,serviceId:s.id,serviceLabel:s.name,kind:s.kind,profile,profileName:customerType.name,hourScheme:customerType.calculation,preferred:profile==='preferred',base:priceOf(tariff,profile,!!event),category:s.kind==='free'?'time_free_'+(profile==='preferred'?'preferred':profile):serviceCategory(s),parking:s.parking,addon:priceOf(s,profile,false,'addonPrices'),durationHours:s.durationHours||0,visitHours:s.kind==='monthly'?s.visitHours??null:null,
   hourlyRate:priceOf(hour,profile),shortRate:fullHour?priceOf(hour,profile):Math.min(priceOf(hour,profile,false,'shortPrices'),priceOf(hour,profile)),initialHourlyRate:priceOf(hour,profile,!!event),initialShortRate:fullHour?priceOf(hour,profile,!!event):Math.min(priceOf(hour,profile,false,'shortPrices'),priceOf(hour,profile,!!event)),
   shortPension:{hours:short.durationHours,price:priceOf(short,profile,!!event)},longPension:{hours:long.durationHours,price:priceOf(long,profile,!!event)},nightPrice:priceOf(night,profile,!!event),schedule:{opening:k.opening,closing:k.closing},eventId:event?.id||null,rates:config};
 }
@@ -72,10 +73,10 @@ export function pricing(stay,at,events=[]){
   if(['free','day_wash'].includes(s.mode)&&s.coverageEnd!=null){const date=businessDate(stay.entered),event=events.find(e=>e.business_date===date&&e.state!=='cancelled');if(event&&event.ends>s.coverageEnd)return legacyQuote({...stay,service:{...s,coverageEnd:event.ends}},at);}
   return legacyQuote(stay,at);
  }
- requireThat(Number.isSafeInteger(at)&&at>=stay.entered,'Hora de salida inválida.');const lines=[],segments=[];let overdueMs=0;const add=(category,label,cents,start,end)=>{if(!cents)return;lines.push(line(category,label,cents));if(start!=null)segments.push({label,start,end,cents});};
+ requireThat(Number.isSafeInteger(at)&&at>=stay.entered,'Hora de salida inválida.');const lines=[],segments=[],contractEnd=s.contractEnd??(stay.entered+s.durationHours*HOUR),coverageEnd=['pension','monthly'].includes(s.kind)?s.kind==='monthly'&&s.visitHours?Math.min(contractEnd,stay.entered+s.visitHours*HOUR):contractEnd:null;let overdueMs=0;const add=(category,label,cents,start,end)=>{if(!cents)return;lines.push(line(category,label,cents));if(start!=null)segments.push({label,start,end,cents});};
  if(s.kind==='pension'||s.kind==='monthly'){
   if(s.kind!=='monthly'||!s.baseCovered)add(s.category,s.serviceLabel,s.base);
-  const end=s.contractEnd??(stay.entered+s.durationHours*HOUR);overdueMs=Math.max(0,at-end);add('pension_overdue','Pensión · saldo vencido',overdue(overdueMs,s.shortPension,s.longPension),end,at);
+  const end=coverageEnd;overdueMs=Math.max(0,at-end);add('pension_overdue','Pensión · saldo vencido',overdue(overdueMs,s.shortPension,s.longPension),end,at);
  }else{
   const parking=s.kind==='hourly'||s.kind==='free'||s.parking!=='none';if(s.kind!=='hourly')add(s.category,s.serviceLabel,s.base);
   if(s.parking==='addon'&&s.parkingSelected)add('day_addon','Estacionamiento con lavado',s.addon);
@@ -96,5 +97,5 @@ export function pricing(stay,at,events=[]){
  }
  for(const item of s.extras||[])add(item.category,item.name,item.price);
  if(s.lostCard)add('lost_card','Tarjeta extraviada',s.lostPrice??s.rates.lostCard);
- const total=lines.reduce((v,l)=>v+l.cents,0);amount({total},'total');return {lines,total,blocked:false,reason:'',at,segments,overdueMs,coverageEnd:s.contractEnd??(['pension','monthly'].includes(s.kind)?stay.entered+s.durationHours*HOUR:null)};
+ const total=lines.reduce((v,l)=>v+l.cents,0);amount({total},'total');return {lines,total,blocked:false,reason:'',at,segments,overdueMs,coverageEnd};
 }

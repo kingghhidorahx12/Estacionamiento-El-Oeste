@@ -7,10 +7,10 @@ test('catalogue initialization replaces the old midday closing and afternoon hou
  const entered=civilEpoch('2026-11-23','15:28'),s=snapshotService(c,'hourly','normal','auto',entered),stay={entered,service:s};assert.equal(pricing(stay,entered).total,1000);const q=pricing(stay,entered+11*60000);assert.equal(q.total,1500);assert.ok(q.lines.every(l=>l.category==='parking_hourly_normal'));
  const saved=structuredClone(c);saved.catalog.closing='22:00';assert.equal(catalogConfig(saved).catalog.closing,'22:00');
 });
-test('catalogue keeps unassigned monthly types explicit, supports custom types and preserves normal print prices',()=>{
- const c=config();assert.equal(c.bathroomPrice,700);assert.equal(c.catalog.services.find(s=>s.id==='wash_moto').prices.normal,10000);assert.throws(()=>snapshotService(c,'monthly500','normal','auto',at),/Asigna/);
+test('catalogue supports monthly visit limits, explicit vehicle restrictions and normal print prices',()=>{
+ const c=config();assert.equal(c.bathroomPrice,700);assert.equal(c.catalog.services.find(s=>s.id==='wash_moto').prices.normal,10000);const monthly=c.catalog.services.find(s=>s.id==='monthly500');assert.equal(snapshotService(c,'monthly500','normal','moto',at).base,60000);monthly.needsVehicleAssignment=true;assert.throws(()=>snapshotService(c,'monthly500','normal','auto',at),/Asigna/);
  assert.equal(snapshotService(c,'bathroom','presidencia','',at).base,700);for(const [type,total]of [['auto',15000],['camioneta',20000],['van',20000],['pickup',23000]]){const wash=snapshotService(c,'wash_'+type,'normal',type,at);assert.equal(pricing({entered:at,service:wash},at+H).total,total-3000);wash.parkingSelected=true;assert.equal(pricing({entered:at,service:wash},at+H).total,total);}
- c.catalog.vehicleTypes.push({id:'bus',name:'Autobús',active:true});const m=c.catalog.services.find(s=>s.id==='monthly500');m.vehicleTypes=['bus'];assert.equal(snapshotService(validateCatalog(c),'monthly500','normal','bus',at).base,50000);
+ c.catalog.vehicleTypes.push({id:'bus',name:'Autobús',active:true});const m=c.catalog.services.find(s=>s.id==='monthly500');m.vehicleTypes=['bus'];assert.equal(snapshotService(validateCatalog(c),'monthly500','normal','bus',at).base,60000);
  c.catalog.services.find(s=>s.id==='hourly').prices.normal=2000;assert.equal(validateCatalog(c).ordinary,2000);assert.equal(plateKey(' abc-123 a\n'),'ABC123A');
  c.catalog.services.find(s=>s.id==='hourly').active=false;assert.throws(()=>validateCatalog(c),/por hora/);
 });
@@ -23,17 +23,17 @@ test('normal, preferential and Presidencia have independent hourly windows and t
 });
 test('expired pensions retain the initial price and upgrade only the current overdue block',()=>{
  const s=snapshotService(config(),'pension12','normal','auto',at),stay={entered:at,service:s},end=at+12*H;
- for(const [elapsed,total]of [[0,5000],[1,10000],[12*H,10000],[12*H+1,11000],[24*H,11000],[24*H+1,16000],[36*H,16000],[36*H+1,17000],[48*H,17000]])assert.equal(pricing(stay,end+elapsed).total,total,String(elapsed));
- const monthly={...s,kind:'monthly',base:50000,baseCovered:true,contractEnd:at+720*H};assert.equal(pricing({entered:at,service:monthly},monthly.contractEnd+1).total,5000);
+ for(const [elapsed,total]of [[0,7000],[1,14000],[12*H,14000],[12*H+1,15000],[24*H,15000],[24*H+1,22000],[36*H,22000],[36*H+1,23000],[48*H,23000]])assert.equal(pricing(stay,end+elapsed).total,total,String(elapsed));
+ const monthly={...s,kind:'monthly',base:50000,baseCovered:true,contractEnd:at+720*H};assert.equal(pricing({entered:at,service:monthly},monthly.contractEnd+1).total,7000);
 });
 test('time free becomes a night pension at closing and hourly at opening without overlapping periods',()=>{
  const entered=civilEpoch('2026-11-23','18:00'),s=snapshotService(config(),'free','normal','auto',entered),stay={entered,service:s};
- assert.equal(pricing(stay,civilEpoch('2026-11-23','20:00')).total,5000);assert.equal(pricing(stay,civilEpoch('2026-11-23','20:00')+1).total,10000);assert.equal(pricing(stay,civilEpoch('2026-11-24','08:00')).total,11500);
+ assert.equal(pricing(stay,civilEpoch('2026-11-23','20:00')).total,5000);assert.equal(pricing(stay,civilEpoch('2026-11-23','20:00')+1).total,12000);assert.equal(pricing(stay,civilEpoch('2026-11-24','08:00')).total,13500);
 });
 test('events extend existing coverage but price only entries made after activation; wash parking can be included',()=>{
  const c=config(),entered=civilEpoch('2026-11-23','18:00'),event={id:'event',business_date:'2026-11-23',state:'active',starts:civilEpoch('2026-11-23','19:00'),ends:civilEpoch('2026-11-24','03:00'),created:1,catalog:structuredClone(c.catalog)};c.catalog.services.find(s=>s.id==='free').eventPrices.normal=7000;
  const earlier=snapshotService(c,'free','normal','auto',entered);assert.equal(pricing({entered,service:earlier},civilEpoch('2026-11-24','02:00'),[event]).total,5000);
- const later=civilEpoch('2026-11-23','21:00'),s=snapshotService(c,'free','normal','auto',later,[event]);assert.equal(s.base,7000);assert.equal(pricing({entered:later,service:s},civilEpoch('2026-11-24','08:00'),[event]).total,13500);
+ const later=civilEpoch('2026-11-23','21:00'),s=snapshotService(c,'free','normal','auto',later,[event]);assert.equal(s.base,7000);assert.equal(pricing({entered:later,service:s},civilEpoch('2026-11-24','08:00'),[event]).total,15500);
  const wash=c.catalog.services.find(s=>s.id==='wash_auto');wash.parking='included';assert.equal(pricing({entered,service:snapshotService(c,wash.id,'normal','auto',entered)},entered+H).total,12000);wash.parking='addon';const w=snapshotService(c,wash.id,'normal','auto',entered);assert.equal(pricing({entered,service:w},entered+H).total,12000);w.parkingSelected=true;assert.equal(pricing({entered,service:w},entered+H).total,15000);
 });
 test('accounts close visits without income, accept partial payments once, and guard concurrent settlement',async()=>{
@@ -50,10 +50,10 @@ test('accounts close visits without income, accept partial payments once, and gu
   assert.equal((await store.one('SELECT sum(total) total FROM settlements')).total,3500);assert.equal((await new Api(store,f.env,user,clock).history('2026-11-23','2026-11-23')).total,3500);await assert.rejects(store.run('DELETE FROM settlements'),/IMMUTABLE/);
  }finally{db.db.close();}
 });
-test('monthly pending payment does not grant access; a paid contract lasts exactly 30 days and only overdue pension is charged on exit',async()=>{
+test('legacy monthly contracts retain their original conditions for 30 days and pending payments do not grant access',async()=>{
  const db=new SqliteD1(),f=await seed(db),store=new Store(db);let clock=at;const user=f.users[0],call=async(path,b)=>new Api(store,f.env,user,clock).write(path,b,crypto.randomUUID(),await fingerprint(path,b,f.env.REQUEST_KEY));
  try{
-  const c=config();c.catalog.services.find(s=>s.id==='monthly500').vehicleTypes=['auto'];await call('catalog-save',{version:1,config:c});
+  const c=config();c.catalog.services.find(s=>s.id==='monthly500').vehicleTypes=['auto'];delete c.catalog.services.find(s=>s.id==='monthly500').visitHours;c.catalog.services.find(s=>s.id==='pension12').prices.normal=5000;c.catalog.services.find(s=>s.id==='pension24').prices.normal=6000;c.catalog.services.find(s=>s.id==='monthly500').prices.normal=50000;await call('catalog-save',{version:1,config:c});
   await assert.rejects(call('catalog-monthly',{version:2,eventId:null,profile:'normal',serviceId:'monthly500',vehicle:{plate:'MON123',type:'auto'},start:at,datesConfirmed:true,onAccount:true,paymentConfirmed:true}),/Sólo Presidencia/);assert.equal((await store.one('SELECT count(*) n FROM monthly')).n,0);
   const pending=await call('catalog-monthly',{version:2,eventId:null,profile:'normal',serviceId:'monthly500',vehicle:{plate:'MON123',type:'auto'},start:at,datesConfirmed:true,pending:true});
   const body={version:2,eventId:null,card:2,monthlyId:pending.id,profile:'normal',vehicle:{plate:'MON123',type:'auto'}};await assert.rejects(call('catalog-entry',body),/pago/);await assert.rejects(call('monthly-charge-pay',{id:pending.id,paymentConfirmed:true,expectedTotal:40000}),/saldo cambió/);await call('monthly-charge-pay',{id:pending.id,paymentConfirmed:true,expectedTotal:50000});

@@ -87,10 +87,10 @@ test('full Worker in workerd: private owner setup, PIN, browser approval, concur
   const c=await call('customer-save',{...ownerAuth,epoch:'1',body:{name:'Cliente ficticio',plates:['SYN123'],active:true}});assert.equal(c.status,200);
   const version=(await call('state',ownerAuth)).data.version;
   const incoming=await call('catalog-entry',{...ownerAuth,epoch:'1',body:{version,eventId:null,card:5,profile:'presidencia',customerId:c.data.id,serviceId:'pension12',vehicle:{plate:'SYN123',type:'auto'}}});assert.equal(incoming.status,200,JSON.stringify(incoming.data));
-  const closing=await call('catalog-checkout',{...ownerAuth,epoch:'1',body:{id:incoming.data.id,expectedTotal:5000,vehicleConfirmed:true,onAccount:true}});assert.equal(closing.status,200);assert.equal(closing.data.onAccount,true);
-  assert.equal((await call('account?id='+c.data.id,ownerAuth)).data.balance,5000);
+  const closing=await call('catalog-checkout',{...ownerAuth,epoch:'1',body:{id:incoming.data.id,expectedTotal:7000,vehicleConfirmed:true,onAccount:true}});assert.equal(closing.status,200);assert.equal(closing.data.onAccount,true);
+  assert.equal((await call('account?id='+c.data.id,ownerAuth)).data.balance,7000);
   const abono=await call('account-pay',{...ownerAuth,epoch:'1',body:{customerId:c.data.id,amount:1000,paymentConfirmed:true}});assert.equal(abono.status,200);
-  assert.equal((await call('account?id='+c.data.id,ownerAuth)).data.balance,4000);
+  assert.equal((await call('account?id='+c.data.id,ownerAuth)).data.balance,6000);
   await assert.rejects(db.prepare('DELETE FROM settlements').run(),/IMMUTABLE_PAYMENT/);
  }finally{await mf.dispose();}
 });
